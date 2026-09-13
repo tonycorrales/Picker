@@ -16,7 +16,21 @@
  * a harmless retry — whichever lands first wins and the other no-ops).
  */
 
-const FEED = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+/* ESPN answers some hosts and not others depending on where the request
+   comes from — the main host returns 403 to Cloudflare's network even
+   though it is fine from a browser. So try each known host in turn and
+   take the first that answers. cdn.espn.com nests the same data one
+   level deeper, hence the shape tag. */
+const FEEDS = [
+  { base: "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard", shape: "site" },
+  { base: "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard", shape: "site" },
+  { base: "https://cdn.espn.com/core/nfl/scoreboard", shape: "cdn" },
+];
+
+const UAS = [
+  "curl/8.7.1",
+  "Mozilla/5.0 (compatible; SundaySlip/1.0; +https://github.com/tonycorrales/Picker)",
+];
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -59,16 +73,47 @@ function easternDay(iso) {
 
 /* ---------------- the feed ---------------- */
 
-async function getFeed(url) {
-  const r = await fetch(url, { headers: { accept: "application/json" } });
-  if (!r.ok) throw new Error(`feed HTTP ${r.status}`);
-  return r.json();
+function feedUrl(feed, query) {
+  const u = new URL(feed.base);
+  if (feed.shape === "cdn") u.searchParams.set("xhr", "1");
+  if (query) for (const k of Object.keys(query)) u.searchParams.set(k, String(query[k]));
+  return u.toString();
+}
+
+/** Pull the same three things out of either response shape. */
+function unwrap(feed, body) {
+  if (feed.shape === "cdn") {
+    const sb = (body.content && body.content.sbData) || {};
+    return { events: sb.events || [], season: sb.season || body.season, week: sb.week || body.week };
+  }
+  return { events: body.events || [], season: body.season, week: body.week };
+}
+
+async function getFeed(query) {
+  const tried = [];
+  for (const feed of FEEDS) {
+    for (const ua of UAS) {
+      try {
+        const r = await fetch(feedUrl(feed, query), {
+          headers: { "User-Agent": ua, "Accept": "application/json" },
+          cf: { cacheTtl: 0 },
+        });
+        if (!r.ok) { tried.push(`${new URL(feed.base).host} ${r.status}`); continue; }
+        const got = unwrap(feed, await r.json());
+        if (got.events.length) return got;
+        tried.push(`${new URL(feed.base).host} empty`);
+      } catch (e) {
+        tried.push(`${new URL(feed.base).host} ${String((e && e.message) || e)}`);
+      }
+    }
+  }
+  throw new Error("no feed host answered — " + tried.join("; "));
 }
 
 /** Sunday games only, still to be played, with a spread posted. */
 function boardFromFeed(feed) {
   const games = [];
-  for (const e of feed.events || []) {
+  for (const e of feed.events) {
     const c = (e.competitions || [])[0];
     if (!c) continue;
     if (easternDay(e.date) !== "Sun") continue;
@@ -107,10 +152,26 @@ function boardFromFeed(feed) {
 }
 
 /** Freeze this week's lines. First write wins; later calls are no-ops. */
-async function freezeBoard(env) {
-  const feed = await getFeed(FEED);
-  const season = ((feed.season || {}).year) || new Date().getUTCFullYear();
-  const week = ((feed.week || {}).number) || 0;
+async function freezeBoard(env, pushed) {
+  // A board handed to us directly wins — it lets the week be opened even
+  // when no feed host will talk to us.
+  if (pushed && Array.isArray(pushed.games) && pushed.games.length) {
+    const key = `board:${weekKey(pushed.season, pushed.week)}`;
+    const existing = await env.PICKS.get(key, "json");
+    if (existing) return { board: existing, frozen: false };
+    const board = {
+      season: parseInt(pushed.season, 10),
+      week: parseInt(pushed.week, 10),
+      games: pushed.games,
+      frozenAt: new Date().toISOString(),
+    };
+    await env.PICKS.put(key, JSON.stringify(board));
+    return { board, frozen: true };
+  }
+
+  const feed = await getFeed(null);
+  const season = ((feed.season || {}).year) || feed.season || new Date().getUTCFullYear();
+  const week = ((feed.week || {}).number) || feed.week || 0;
   if (badWeek(season, week)) throw new Error("feed gave no usable week");
 
   const key = `board:${weekKey(season, week)}`;
@@ -189,9 +250,13 @@ function gradeEntry(board, picks, scores) {
 }
 
 async function scoresFor(season, week) {
-  const feed = await getFeed(`${FEED}?dates=${parseInt(season, 10)}&seasontype=2&week=${parseInt(week, 10)}`);
+  const feed = await getFeed({
+    dates: parseInt(season, 10),
+    seasontype: 2,
+    week: parseInt(week, 10),
+  });
   const scores = {};
-  for (const e of feed.events || []) {
+  for (const e of feed.events) {
     const c = (e.competitions || [])[0];
     if (!c) continue;
     const st = (c.status || {}).type || {};
@@ -278,8 +343,10 @@ async function handle(request, env) {
   /* POST /api/board — freeze now. Safe to call any number of times; only
      the first call in a week writes anything. */
   if (path === "/api/board" && request.method === "POST") {
+    let pushed = null;
+    try { pushed = await request.json(); } catch { pushed = null; }
     try {
-      const res = await freezeBoard(env);
+      const res = await freezeBoard(env, pushed);
       await env.PICKS.put("current", JSON.stringify({ season: res.board.season, week: res.board.week }));
       return json(res);
     } catch (e) {
