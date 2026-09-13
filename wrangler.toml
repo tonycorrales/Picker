@@ -7,8 +7,11 @@ compatibility_date = "2026-01-01"
 # 5am ET Sunday. 09:00 UTC is 5am ET while daylight time is in effect and
 # 4am once it ends; the 10:00 run is a retry that no-ops if the first
 # already froze the board. Either way it lands hours before kickoff.
+#
+# Cloudflare's weekday field is 1-7 with 1 = Sunday, NOT the usual 0-6 —
+# "0" is rejected outright. SUN avoids the whole question.
 [triggers]
-crons = ["0 9 * * 0", "0 10 * * 0"]
+crons = ["0 9 * * SUN", "0 10 * * SUN"]
 
 [[kv_namespaces]]
 binding = "PICKS"

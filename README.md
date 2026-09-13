@@ -58,8 +58,9 @@ doesn't.
 4. **Edit code**, replace everything with the contents of `worker.js`, deploy.
 5. **Settings → Bindings → Add → KV namespace.** Variable name must be exactly
    `PICKS`; pick the namespace from step 2. Deploy again.
-6. **Settings → Triggers → Cron Triggers → Add.** Add `0 9 * * 0`, then add
-   `0 10 * * 0`.
+6. **Settings → Triggers → Cron Triggers → Add.** Add `0 9 * * SUN`, then add
+   `0 10 * * SUN`. (Cloudflare's weekday field runs 1-7 with 1 = Sunday, not
+   the usual 0-6, so a plain `0` is rejected. The abbreviation sidesteps it.)
 7. Copy the Worker's URL — `https://sunday-slip.<something>.workers.dev`.
 
 Visiting that URL in a browser should return `{"ok":true,...}`. If it says
