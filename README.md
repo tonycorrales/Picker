@@ -23,7 +23,22 @@ Two pieces:
    Worker, not the page, so it can't be stepped around with devtools.
 4. Once you're locked, everyone else's locked entries appear side by side.
 5. As games go final, the page grades every entry: **% correct on spreads, %
-   correct on totals, and combined**, with won-lost records underneath.
+   correct on totals, and combined**, with won-lost records underneath. It
+   re-checks every 60 seconds while you have it open, so a 1:00 game grades
+   while the 4:25s are still running, and stops once everything is final.
+6. The **Leaderboard** ranks everyone by overall percentage, season to date.
+
+### Deadlines are per game, not per slate
+
+A game shuts at its own kickoff. Miss the early window and you can still pick
+everything that hasn't started — you just don't get the ones already under way,
+and they count 0-0 rather than as losses. You still see nobody else's picks
+until you've locked your own in, so joining late never means picking with
+someone else's card in front of you.
+
+That per-game deadline is also what keeps the leaderboard honest. If picks
+stayed open, someone could read a rival's percentage against known results and
+work backwards to their card.
 
 A tie against the number is a push. It counts for nobody and is left out of the
 percentages rather than scored as a loss, so a 6-5-2 week reads as 55%, not 46%.
@@ -78,7 +93,8 @@ play stale numbers.
   a name owns it for that week; another device using the same name is turned
   away rather than allowed to overwrite or peek. Clearing browser data gives up
   that claim, so pick a name and stay on one device.
-- Entries can't be changed once locked. That's the point of locking.
+- Entries can't be changed once locked, and you get one entry per week — you
+  can't lock the early games and top up later.
 - Storage is tiny — one board and three entries per week, well inside KV's free
   tier.
 
@@ -89,7 +105,8 @@ play stale numbers.
 | `GET /api/week?season&week&name&secret` | Board, your entry, the roster, and — only if you're locked — everyone's entries |
 | `POST /api/board` | Freeze this week's lines. First call wins; later calls no-op |
 | `GET /api/scores?season&week` | Final scores for grading |
-| `POST /api/lock` | Seal one person's entry |
+| `POST /api/lock` | Seal one person's entry (games already kicked off are dropped) |
+| `GET /api/leaderboard?season` | Season-to-date standings, ranked on overall % |
 
 Lines and scores come from ESPN's public scoreboard endpoint, which needs no key
 and no signup. Spreads and totals are DraftKings' numbers as ESPN publishes them.

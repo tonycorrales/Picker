@@ -72,6 +72,23 @@ h1{
   text-transform:uppercase; color:var(--ink-3); text-align:right; white-space:nowrap;
 }
 .whoami b{display:block; color:var(--ink); font-size:13px; letter-spacing:.06em}
+.headright{display:flex; flex-direction:column; align-items:flex-end; gap:6px}
+.linkbtn{
+  background:none; border:0; padding:2px 0; cursor:pointer; white-space:nowrap;
+  font-size:13px; font-weight:500; color:var(--ink-2); border-bottom:1px solid var(--line-strong);
+}
+.linkbtn:hover{color:var(--ink)}
+.livebar{
+  display:flex; align-items:center; gap:8px; margin:10px 0 0;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);
+}
+.pulse{
+  width:7px; height:7px; border-radius:99px; background:var(--accent); flex:none;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){ .pulse{animation:none} }
 
 /* ---------- source strip ---------- */
 .source{
@@ -125,6 +142,9 @@ h1{
   padding:12px; box-shadow:var(--shadow);
 }
 .game.done{border-color:var(--accent)}
+.game.shut{opacity:.55}
+.game.shut .side, .game.shut .tot{cursor:default}
+.game.shut .side:hover, .game.shut .tot:hover{background:var(--sunk); color:var(--ink-2)}
 .gm-head{
   display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;
   font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
@@ -241,6 +261,7 @@ h1{
   padding:12px 14px; background:var(--sunk); border:1px solid var(--line); border-radius:8px;
 }
 .stand.lead{border-color:var(--accent); background:var(--accent-soft)}
+.stand .nm .rk{color:var(--ink-3); font-size:14px}
 .stand .nm{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; letter-spacing:.02em; min-width:0; overflow:hidden; text-overflow:ellipsis}
 .stat{text-align:right}
 .stat .k{
@@ -303,10 +324,14 @@ footer{
       <h1>Sunday Slip</h1>
       <p class="sub" id="tagline">Two calls per game: who covers the spread, and whether the combined score goes over or under the total.</p>
     </div>
-    <div class="whoami hidden" id="whoami">Playing as<b id="whoamiName"></b></div>
+    <div class="headright">
+      <button class="linkbtn" id="lbBtn" type="button">Leaderboard</button>
+      <div class="whoami hidden" id="whoami">Playing as<b id="whoamiName"></b></div>
+    </div>
   </header>
 
   <p class="source" id="source"><span class="led"></span><span id="sourceText">Connecting</span></p>
+  <p class="source warn hidden" id="deadline"><span class="led"></span><span id="deadlineText"></span></p>
 
   <!-- who are you -->
   <section class="panel hidden" id="gate">
@@ -326,12 +351,27 @@ footer{
     <p id="waitingText">The week's lines get pulled once, at 5am ET Sunday morning, and then they're locked. Check back after that.</p>
   </section>
 
+  <!-- leaderboard -->
+  <section class="panel hidden" id="leaderboard">
+    <h2>Leaderboard</h2>
+    <p id="lbSub">Loading…</p>
+    <div class="standings" id="lbTable"></div>
+    <div class="stack"><button class="btn ghost" id="lbBack" type="button">Back</button></div>
+  </section>
+
+  <!-- picks closed -->
+  <section class="empty hidden" id="closed">
+    <h2>Picks are closed</h2>
+    <p id="closedText">The first game has kicked off, so the board is shut for this week. The leaderboard is still live.</p>
+  </section>
+
   <!-- the board -->
   <main class="hidden" id="picker">
     <div class="progress">
       <div class="progress-top"><span>Picks made</span><b id="count">0 of 0</b></div>
       <div class="track"><div class="fill" id="fill"></div></div>
     </div>
+    <p class="source warn hidden" id="late"><span class="led"></span><span id="lateText"></span></p>
     <ul class="games" id="games"></ul>
     <div class="bar">
       <button class="btn" id="reviewBtn" type="button" disabled>Pick every game first</button>
@@ -357,6 +397,7 @@ footer{
     <section class="panel">
       <h2 id="lockedTitle">You're locked in</h2>
       <p id="lockedSub">Nothing left to do but watch.</p>
+      <p class="livebar hidden" id="livebar"><span class="pulse"></span><span id="liveText"></span></p>
       <div class="roster" id="roster"></div>
     </section>
 
@@ -501,8 +542,18 @@ footer{
   }
 
   /* ---------- board ---------- */
-  function needed(g){ return 1 + (g.total === null || g.total === undefined ? 0 : 1); }
+  /* A game shuts on its own kickoff. Miss the early window and you lose
+     those games only — the rest of the day is still yours to pick. */
+  function isOpen(g){
+    var t = new Date(g.date).getTime();
+    return isNaN(t) ? true : t > Date.now();
+  }
+  function needed(g){
+    if (!isOpen(g)) return 0;
+    return 1 + (g.total === null || g.total === undefined ? 0 : 1);
+  }
   function made(g){
+    if (!isOpen(g)) return 0;
     var p = state.picks[g.id] || {};
     return (p.side === undefined ? 0 : 1) + (p.total === undefined ? 0 : 1);
   }
@@ -511,8 +562,9 @@ footer{
     var list = $("games");
     list.textContent = "";
     state.board.games.forEach(function(g){
+      var open = isOpen(g);
       var li = document.createElement("li");
-      li.className = "game";
+      li.className = "game" + (open ? "" : " shut");
       li.id = "card-" + g.id;
 
       var head = document.createElement("div");
@@ -547,7 +599,9 @@ footer{
         ln.className = "line"; ln.textContent = fmtSpread(side.spread);
         b.appendChild(city); b.appendChild(team); b.appendChild(ln);
 
+        b.disabled = !open;
         b.addEventListener("click", function(){
+          if (!isOpen(g)) return;
           var p = state.picks[g.id] || (state.picks[g.id] = {});
           p.side = (p.side === idx) ? undefined : idx;
           refresh();
@@ -574,7 +628,9 @@ footer{
           t.id = "tot-" + g.id + "-" + dir;
           t.setAttribute("aria-pressed", "false");
           t.textContent = (dir === "over" ? "Over " : "Under ") + g.total;
+          t.disabled = !open;
           t.addEventListener("click", function(){
+            if (!isOpen(g)) return;
             var p = state.picks[g.id] || (state.picks[g.id] = {});
             p.total = (p.total === dir) ? undefined : dir;
             refresh();
@@ -597,8 +653,10 @@ footer{
       want += n; done += m;
       var card = $("card-" + g.id);
       if (!card) return;
-      card.classList.toggle("done", m === n);
-      card.querySelector(".chip").textContent = (m === n) ? "Locked in" : m + " of " + n;
+      var open = isOpen(g);
+      card.classList.toggle("shut", !open);
+      card.classList.toggle("done", open && m === n);
+      card.querySelector(".chip").textContent = !open ? "Kicked off" : (m === n ? "Locked in" : m + " of " + n);
       g.sides.forEach(function(_, i){
         var b = $("side-" + g.id + "-" + i);
         if (b) b.setAttribute("aria-pressed", p.side === i ? "true" : "false");
@@ -610,18 +668,43 @@ footer{
     });
     $("count").textContent = done + " of " + want;
     $("fill").style.width = (want ? (done / want) * 100 : 0) + "%";
+
+    var shut = state.board.games.filter(function(g){ return !isOpen(g); }).length;
+    var late = $("late");
+    if (shut && shut < state.board.games.length){
+      late.classList.remove("hidden");
+      $("lateText").textContent = shut + (shut === 1 ? " game has" : " games have") +
+        " already kicked off — you can still pick the other " +
+        (state.board.games.length - shut) + ". The ones you missed count 0-0, not as losses.";
+    } else {
+      late.classList.add("hidden");
+    }
+
     var btn = $("reviewBtn");
     var all = want > 0 && done === want;
     btn.disabled = !all || state.preview;
     btn.textContent = state.preview ? "Preview only — not connected"
+      : want === 0 ? "Every game has kicked off"
       : all ? "Review and lock in"
       : (want - done) + " left to pick";
   }
 
   /* ---------- review ---------- */
+  function openPicks(){
+    var out = {};
+    state.board.games.forEach(function(g){
+      if (isOpen(g) && state.picks[g.id]) out[g.id] = state.picks[g.id];
+    });
+    return out;
+  }
+
+  /* Only games actually picked — a late entry simply has fewer rows. */
   function pickRows(picks){
-    return state.board.games.map(function(g){
-      var p = picks[g.id] || {};
+    return state.board.games.filter(function(g){
+      var p = picks[g.id];
+      return p && (p.side === 0 || p.side === 1);
+    }).map(function(g){
+      var p = picks[g.id];
       return { g: g, team: g.sides[p.side], opp: g.sides[1 - p.side], dir: p.total };
     });
   }
@@ -851,6 +934,8 @@ footer{
       : "Your picks were sealed " + lockedWhen.toLocaleString(undefined, { weekday:"long", hour:"numeric", minute:"2-digit" }) + ".";
     renderRoster();
     renderMine();
+    liveLabel();
+    startLive();
 
     var others = state.entries.filter(function(e){ return e.name !== state.you.name; });
     var grades = {};
@@ -891,17 +976,143 @@ footer{
     state.you = s.you;
     state.entries = s.entries || [];
     state.roster = s.roster || [];
+    state.closesAt = s.closesAt || null;
+    state.closed = !!s.closed;
+  }
+
+  /* ---------- live updates ---------- */
+  /* Each game flips to final on its own, so a 1:00 grades while the 4:25s
+     are still running. Re-check every minute and stop once they're all in. */
+  var liveTimer = null, syncing = false;
+
+  function allFinal(){
+    if (!state.scores || !state.board) return false;
+    return state.board.games.every(function(g){
+      var s = state.scores[g.id];
+      return s && s.completed;
+    });
+  }
+
+  function startLive(){
+    if (liveTimer || state.preview) return;
+    liveTimer = setInterval(syncLive, 60000);
+  }
+  function stopLive(){
+    if (liveTimer){ clearInterval(liveTimer); liveTimer = null; }
+  }
+  function syncLive(){
+    if (syncing || state.preview || !state.you) return;
+    syncing = true;
+    api("/api/week" + qs())
+      .then(function(s){ applyState(s); return loadScores(); })
+      .then(function(){
+        syncing = false;
+        if ($("locked").classList.contains("hidden")) return;
+        renderLocked();
+      })
+      .catch(function(){ syncing = false; });
+  }
+
+  function liveLabel(){
+    var bar = $("livebar");
+    if (allFinal()){
+      stopLive();
+      bar.classList.add("hidden");
+      return;
+    }
+    bar.classList.remove("hidden");
+    $("liveText").textContent = "Grading live · checked " +
+      new Date().toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+  }
+
+  /* ---------- leaderboard ---------- */
+  function showLeaderboard(){
+    ["gate","picker","review","locked","waiting","closed"].forEach(function(id){ show(id, false); });
+    show("leaderboard", true);
+    window.scrollTo(0, 0);
+    if (state.preview){
+      $("lbSub").textContent = "Preview only — not connected to the picks server.";
+      return;
+    }
+    var season = state.board ? state.board.season : new Date().getFullYear();
+    $("lbSub").textContent = "Loading…";
+    api("/api/leaderboard?season=" + season)
+      .then(renderLeaderboard)
+      .catch(function(e){ $("lbSub").textContent = String(e.message || e); });
+  }
+
+  function renderLeaderboard(data){
+    var box = $("lbTable");
+    box.textContent = "";
+    var players = data.players || [];
+    var weeksIn = (data.weeks || []).length;
+
+    if (!players.length){
+      $("lbSub").textContent = "Nothing graded yet. Standings appear once games go final.";
+      return;
+    }
+    $("lbSub").textContent = weeksIn === 1
+      ? "Week " + data.weeks[0].week + (data.weeks[0].final ? ", final." : ", still in progress.")
+      : weeksIn + " weeks played, " + data.season + " season to date.";
+
+    players.forEach(function(p, i){
+      var row = document.createElement("div");
+      row.className = "stand" + (i === 0 ? " lead" : "");
+
+      var nm = document.createElement("span");
+      nm.className = "nm";
+      var rk = document.createElement("span");
+      rk.className = "rk";
+      rk.textContent = (i + 1) + ".";
+      nm.appendChild(rk);
+      nm.appendChild(document.createTextNode(" " + p.name));
+
+      function stat(label, w, l, big){
+        var s = document.createElement("span");
+        s.className = "stat" + (big ? " big" : "");
+        var k = document.createElement("span");
+        k.className = "k"; k.textContent = label;
+        var v = document.createElement("span");
+        v.className = "v"; v.textContent = pct(w, l);
+        s.appendChild(k); s.appendChild(v);
+        return s;
+      }
+      row.appendChild(nm);
+      row.appendChild(stat("Spreads", p.spread.w, p.spread.l));
+      row.appendChild(stat("Totals", p.total.w, p.total.l));
+      row.appendChild(stat("Overall", p.combined.w, p.combined.l, true));
+
+      var rec = document.createElement("div");
+      rec.className = "reclabel";
+      rec.style.gridColumn = "1 / -1";
+      rec.textContent = p.combined.w + "-" + p.combined.l +
+        (p.combined.p ? "-" + p.combined.p : "") + " overall" +
+        " · spreads " + p.spread.w + "-" + p.spread.l +
+        " · totals " + p.total.w + "-" + p.total.l +
+        (p.weeks > 1 ? " · " + p.weeks + " weeks" : "");
+      row.appendChild(rec);
+      box.appendChild(row);
+    });
   }
 
   function route(){
+    show("leaderboard", false);
     if (!state.board){
       show("waiting", true);
-      show("gate", false); show("picker", false); show("locked", false);
+      show("gate", false); show("picker", false); show("locked", false); show("closed", false);
       return;
     }
+    showDeadline();
     if (state.you) return renderLocked();
 
     show("waiting", false); show("locked", false);
+
+    // Board shut, and you never got an entry in.
+    if (state.closed){
+      show("closed", true); show("gate", false); show("picker", false);
+      return;
+    }
+    show("closed", false);
     if (!state.name){
       show("gate", true); show("picker", false); show("whoami", false);
       return;
@@ -918,6 +1129,16 @@ footer{
     return api("/api/scores?season=" + state.board.season + "&week=" + state.board.week)
       .then(function(j){ state.scores = j.scores || null; })
       .catch(function(){});
+  }
+
+  function showDeadline(){
+    if (!state.closesAt){ show("deadline", false); return; }
+    var d = new Date(state.closesAt);
+    if (isNaN(d)){ show("deadline", false); return; }
+    show("deadline", true);
+    $("deadlineText").textContent = state.closed
+      ? "Picks closed at kickoff"
+      : "Picks close " + d.toLocaleString(undefined, { weekday:"short", hour:"numeric", minute:"2-digit" });
   }
 
   function setSource(text, tone){
@@ -1000,6 +1221,13 @@ footer{
     });
   });
 
+  $("lbBtn").addEventListener("click", showLeaderboard);
+  $("lbBack").addEventListener("click", function(){
+    show("leaderboard", false);
+    if (state.preview){ show("picker", true); return; }
+    route();
+  });
+
   $("reviewBtn").addEventListener("click", function(){
     renderReview();
     $("reviewTitle").textContent = state.name + ", check it over";
@@ -1023,7 +1251,8 @@ footer{
       method: "POST",
       body: {
         season: state.board.season, week: state.board.week,
-        name: state.name, secret: state.secret, picks: state.picks
+        name: state.name, secret: state.secret,
+        picks: openPicks()
       }
     }).then(function(s){
       applyState(s);

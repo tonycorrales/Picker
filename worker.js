@@ -130,6 +130,83 @@ async function freezeBoard(env) {
   return { board, frozen: true };
 }
 
+/** Games that haven't kicked off yet — the only ones still pickable.
+ *  Each game shuts on its own clock, so missing the early window costs
+ *  you those games and nothing else. */
+function openGames(board) {
+  if (!board || !board.games) return [];
+  const now = Date.now();
+  return board.games.filter((g) => {
+    const t = new Date(g.date).getTime();
+    return Number.isFinite(t) ? t > now : true;
+  });
+}
+
+/** When the next still-open game shuts. */
+function nextClose(open) {
+  let first = Infinity;
+  for (const g of open) {
+    const t = new Date(g.date).getTime();
+    if (Number.isFinite(t) && t < first) first = t;
+  }
+  return Number.isFinite(first) ? new Date(first).toISOString() : null;
+}
+
+/* ---------------- grading ---------------- */
+
+/** One entry against the frozen lines and the final scores.
+ *  A dead-even result is a push: it counts for nobody and is left out of
+ *  the percentages rather than scored as a loss. */
+function gradeEntry(board, picks, scores) {
+  const out = { spread: { w: 0, l: 0, p: 0 }, total: { w: 0, l: 0, p: 0 }, graded: 0 };
+  for (const g of board.games) {
+    const sc = scores[g.id];
+    if (!sc || !sc.completed || sc.away === null || sc.home === null) continue;
+    const pick = picks[g.id];
+    if (!pick) continue;
+    out.graded++;
+
+    const mine = pick.side === 0 ? sc.away : sc.home;
+    const theirs = pick.side === 0 ? sc.home : sc.away;
+    const margin = mine - theirs + g.sides[pick.side].spread;
+    out.spread[margin > 0 ? "w" : margin < 0 ? "l" : "p"]++;
+
+    if (g.total !== null && g.total !== undefined && pick.total) {
+      const comb = sc.away + sc.home;
+      out.total[
+        comb > g.total ? (pick.total === "over" ? "w" : "l")
+        : comb < g.total ? (pick.total === "under" ? "w" : "l")
+        : "p"
+      ]++;
+    }
+  }
+  out.combined = {
+    w: out.spread.w + out.total.w,
+    l: out.spread.l + out.total.l,
+    p: out.spread.p + out.total.p,
+  };
+  return out;
+}
+
+async function scoresFor(season, week) {
+  const feed = await getFeed(`${FEED}?dates=${parseInt(season, 10)}&seasontype=2&week=${parseInt(week, 10)}`);
+  const scores = {};
+  for (const e of feed.events || []) {
+    const c = (e.competitions || [])[0];
+    if (!c) continue;
+    const st = (c.status || {}).type || {};
+    const by = {};
+    for (const t of c.competitors || []) by[t.homeAway] = Number(t.score);
+    scores[String(e.id)] = {
+      completed: !!st.completed,
+      state: st.state || "",
+      away: Number.isFinite(by.away) ? by.away : null,
+      home: Number.isFinite(by.home) ? by.home : null,
+    };
+  }
+  return scores;
+}
+
 /* ---------------- state ---------------- */
 
 /** Everything a client may know, given who is asking. */
@@ -161,7 +238,15 @@ async function weekState(env, season, week, name, secret) {
     ? all.map((e) => ({ name: e.name, lockedAt: e.lockedAt, picks: e.picks }))
     : [];
 
-  return { board, you, entries, roster, locked: !!you, nameTaken: !!(mine && !you) };
+  const open = openGames(board);
+  return {
+    board, you, entries, roster,
+    locked: !!you,
+    nameTaken: !!(mine && !you),
+    openIds: open.map((g) => g.id),
+    closesAt: nextClose(open),
+    closed: !!(board && !open.length),
+  };
 }
 
 /* ---------------- routes ---------------- */
@@ -174,7 +259,7 @@ async function handle(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   if (path === "/" || path === "/api") {
-    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/week", "/api/board", "/api/scores", "/api/lock"] });
+    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/week", "/api/board", "/api/scores", "/api/lock", "/api/leaderboard"] });
   }
 
   /* GET /api/week?season=&week=&name=&secret=
@@ -207,25 +292,70 @@ async function handle(request, env) {
     const season = q.get("season"), week = q.get("week");
     if (badWeek(season, week)) return json({ error: "bad season or week" }, 400);
     try {
-      const feed = await getFeed(`${FEED}?dates=${parseInt(season, 10)}&seasontype=2&week=${parseInt(week, 10)}`);
-      const scores = {};
-      for (const e of feed.events || []) {
-        const c = (e.competitions || [])[0];
-        if (!c) continue;
-        const st = (c.status || {}).type || {};
-        const by = {};
-        for (const t of c.competitors || []) by[t.homeAway] = Number(t.score);
-        scores[String(e.id)] = {
-          completed: !!st.completed,
-          state: st.state || "",
-          away: Number.isFinite(by.away) ? by.away : null,
-          home: Number.isFinite(by.home) ? by.home : null,
-        };
-      }
-      return json({ scores });
+      return json({ scores: await scoresFor(season, week) });
     } catch (e) {
       return json({ error: String((e && e.message) || e) }, 502);
     }
+  }
+
+  /* GET /api/leaderboard?season= — season-to-date, every week combined. */
+  if (path === "/api/leaderboard" && request.method === "GET") {
+    const season = parseInt(q.get("season") || "", 10);
+    if (!(season >= 2000 && season <= 2100)) return json({ error: "bad season" }, 400);
+
+    const boards = await env.PICKS.list({ prefix: `board:${season}-` });
+    const players = {};
+    const weeks = [];
+
+    for (const k of boards.keys) {
+      const week = parseInt(k.name.split("-").pop(), 10);
+      const board = await env.PICKS.get(k.name, "json");
+      if (!board || !board.games || !board.games.length) continue;
+
+      // A finished week never changes, so grade it once and keep it.
+      let cached = await env.PICKS.get(`graded:${season}-${week}`, "json");
+      let rows, allFinal;
+      if (cached) {
+        rows = cached.rows;
+        allFinal = true;
+      } else {
+        let scores;
+        try { scores = await scoresFor(season, week); }
+        catch { continue; }
+        allFinal = board.games.every((g) => scores[g.id] && scores[g.id].completed);
+
+        const listed = await env.PICKS.list({ prefix: `entry:${season}-${week}:` });
+        rows = [];
+        for (const ek of listed.keys) {
+          const e = await env.PICKS.get(ek.name, "json");
+          if (!e) continue;
+          rows.push({ name: e.name, ...gradeEntry(board, e.picks, scores) });
+        }
+        if (allFinal && rows.length) {
+          await env.PICKS.put(`graded:${season}-${week}`, JSON.stringify({ rows }));
+        }
+      }
+
+      if (!rows.length) continue;
+      weeks.push({ week, final: allFinal, players: rows });
+      for (const r of rows) {
+        const p = players[r.name] || (players[r.name] = {
+          name: r.name, weeks: 0,
+          spread: { w: 0, l: 0, p: 0 }, total: { w: 0, l: 0, p: 0 }, combined: { w: 0, l: 0, p: 0 },
+        });
+        p.weeks++;
+        for (const bucket of ["spread", "total", "combined"]) {
+          for (const res of ["w", "l", "p"]) p[bucket][res] += r[bucket][res];
+        }
+      }
+    }
+
+    weeks.sort((a, b) => a.week - b.week);
+    const table = Object.values(players).sort((a, b) => {
+      const ra = a.combined.w + a.combined.l, rb = b.combined.w + b.combined.l;
+      return (rb ? b.combined.w / rb : -1) - (ra ? a.combined.w / ra : -1);
+    });
+    return json({ season, players: table, weeks });
   }
 
   /* POST /api/lock — seal one person's entry. */
@@ -243,6 +373,13 @@ async function handle(request, env) {
     const board = await env.PICKS.get(`board:${key}`, "json");
     if (!board) return json({ error: "This week's board isn't open yet." }, 409);
 
+    // You can join late, but only for games that haven't started. Nobody
+    // picks a game with its score already on the screen.
+    const open = openGames(board);
+    if (!open.length) {
+      return json({ error: "Every game has kicked off. Nothing left to pick this week." }, 409);
+    }
+
     const prior = await env.PICKS.get(`entry:${key}:${id}`, "json");
     if (prior) {
       return json(
@@ -253,9 +390,10 @@ async function handle(request, env) {
       );
     }
 
-    // Every game on the frozen board, or it isn't an entry.
+    // Every game still open, or it isn't an entry. Games already under way
+    // are dropped rather than rejected — they simply aren't yours to pick.
     const clean = {};
-    for (const g of board.games) {
+    for (const g of open) {
       const p = (picks || {})[g.id];
       if (!p || (p.side !== 0 && p.side !== 1)) {
         return json({ error: "Every game needs a side picked." }, 400);
@@ -275,6 +413,9 @@ async function handle(request, env) {
         secret: String(secret),
         lockedAt: new Date().toISOString(),
         picks: clean,
+        // How many games were on the table when they locked, so a late
+        // entry reads as late rather than as someone who skipped games.
+        eligible: open.length,
       })
     );
 
