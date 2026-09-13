@@ -13,7 +13,7 @@
   --ink:#141C16; --ink-2:#5C6A60; --ink-3:#8A978E;
   --line:#CDD6C8; --line-strong:#B3BFAD;
   --accent:#14603C; --accent-ink:#FFFFFF; --accent-soft:#DCEBE1;
-  --gold:#9A6E05; --gold-bright:#F2C14E;
+  --gold:#9A6E05;
   --shadow:0 1px 2px rgba(20,28,22,.06), 0 8px 20px -12px rgba(20,28,22,.24);
   --stripe-filter:none;
   --radius:10px;
@@ -24,7 +24,7 @@
     --ink:#E8EEE7; --ink-2:#9DAC9F; --ink-3:#75857A;
     --line:#2A352C; --line-strong:#3A4A3D;
     --accent:#3FA06A; --accent-ink:#06150C; --accent-soft:#1C2E23;
-    --gold:#F2C14E; --gold-bright:#F2C14E;
+    --gold:#F2C14E;
     --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px -14px rgba(0,0,0,.8);
     --stripe-filter:brightness(1.9) saturate(1.15);
   }
@@ -34,7 +34,7 @@
   --ink:#E8EEE7; --ink-2:#9DAC9F; --ink-3:#75857A;
   --line:#2A352C; --line-strong:#3A4A3D;
   --accent:#3FA06A; --accent-ink:#06150C; --accent-soft:#1C2E23;
-  --gold:#F2C14E; --gold-bright:#F2C14E;
+  --gold:#F2C14E;
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px -14px rgba(0,0,0,.8);
   --stripe-filter:brightness(1.9) saturate(1.15);
 }
@@ -50,6 +50,7 @@ body{
 button{font:inherit; color:inherit}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
 @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+.hidden{display:none !important}
 
 /* ---------- header ---------- */
 .eyebrow{
@@ -61,7 +62,7 @@ h1{
   font-size:clamp(30px,8vw,40px); line-height:1.02; letter-spacing:.005em;
   margin:0; text-wrap:balance; text-transform:uppercase;
 }
-.sub{margin:8px 0 0; color:var(--ink-2); font-size:15px; max-width:46ch}
+.sub{margin:8px 0 0; color:var(--ink-2); font-size:15px; max-width:48ch}
 .topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:14px}
 .linkbtn{
   background:none; border:0; padding:4px 0; cursor:pointer; white-space:nowrap;
@@ -70,9 +71,20 @@ h1{
 }
 .linkbtn:hover{color:var(--ink)}
 
+/* ---------- source strip ---------- */
+.source{
+  display:flex; align-items:center; gap:8px; margin-top:18px;
+  font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);
+}
+.led{width:7px; height:7px; border-radius:99px; background:var(--ink-3); flex:none}
+.source.live .led{background:var(--accent)}
+.source.live{color:var(--ink-2)}
+.source.stale .led{background:var(--gold)}
+
 /* ---------- name ---------- */
 .namerow{
-  display:flex; align-items:center; gap:10px; margin-top:22px;
+  display:flex; align-items:center; gap:10px; margin-top:14px;
   padding:10px 12px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
 }
 .namerow label{
@@ -87,7 +99,7 @@ h1{
 .namerow input:focus{outline:none}
 
 /* ---------- progress ---------- */
-.progress{margin:26px 0 14px}
+.progress{margin:22px 0 14px}
 .progress-top{
   display:flex; justify-content:space-between; align-items:baseline; gap:10px;
   font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
@@ -101,7 +113,7 @@ h1{
 .games{display:flex; flex-direction:column; gap:14px; margin:0; padding:0; list-style:none}
 .game{
   background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-  padding:12px 12px 14px; box-shadow:var(--shadow);
+  padding:12px 12px 12px; box-shadow:var(--shadow);
 }
 .game.done{border-color:var(--accent)}
 .gm-head{
@@ -109,8 +121,9 @@ h1{
   font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
   letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
 }
-.chip{color:var(--ink-3)}
-.game.done .chip{color:var(--accent); font-weight:600}
+.gm-head .when{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.chip{white-space:nowrap; color:var(--ink-3)}
+.game.done .chip{color:var(--accent)}
 .matchup{display:grid; grid-template-columns:1fr auto 1fr; align-items:stretch; gap:6px}
 .at{
   align-self:center; font-family:"Oswald",sans-serif; font-size:12px; letter-spacing:.1em;
@@ -123,13 +136,14 @@ h1{
   position:relative; overflow:hidden;
 }
 .side::before{
-  content:""; position:absolute; inset:0 0 auto 0; height:3px; background:var(--team, var(--line-strong)); filter:var(--stripe-filter);
+  content:""; position:absolute; inset:0 0 auto 0; height:3px;
+  background:var(--team, var(--line-strong)); filter:var(--stripe-filter);
 }
 .side:hover{background:var(--accent-soft)}
 .side .city{font-size:11px; color:var(--ink-2); letter-spacing:.04em}
 .side .team{
   font-family:"Oswald",sans-serif; font-weight:500; text-transform:uppercase;
-  font-size:clamp(17px,4.6vw,21px); line-height:1.1; letter-spacing:.01em;
+  font-size:clamp(16px,4.4vw,21px); line-height:1.1; letter-spacing:.01em;
 }
 .side .line{
   font-family:"IBM Plex Mono", monospace; font-weight:600; font-size:15px;
@@ -140,6 +154,34 @@ h1{
 .side[aria-pressed="true"] .line,
 .side[aria-pressed="true"] .city{color:var(--accent-ink)}
 .side[aria-pressed="true"] .city{opacity:.75}
+
+/* ---------- total ---------- */
+.totalrow{
+  display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+  margin-top:10px; padding-top:10px; border-top:1px solid var(--line);
+}
+.totalrow .tlabel{
+  font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+}
+.totalrow .tlabel b{color:var(--ink-2); font-variant-numeric:tabular-nums}
+.tbtns{display:flex; gap:6px; flex:1 1 222px; justify-content:flex-end}
+.tot{
+  flex:0 1 108px; white-space:nowrap; cursor:pointer; background:var(--sunk); border:1px solid transparent;
+  border-radius:99px; padding:7px 10px; font-size:13px; font-weight:600;
+  font-family:"IBM Plex Mono", monospace; letter-spacing:.05em;
+  color:var(--ink-2); transition:background .15s ease, color .15s ease;
+}
+.tot:hover{background:var(--accent-soft); color:var(--ink)}
+.tot[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+
+/* ---------- empty ---------- */
+.empty{
+  background:var(--surface); border:1px dashed var(--line-strong); border-radius:var(--radius);
+  padding:26px 20px; text-align:center; color:var(--ink-2);
+}
+.empty h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:19px; margin:0 0 6px; color:var(--ink)}
+.empty p{margin:0; font-size:14px}
 
 /* ---------- submit bar ---------- */
 .bar{
@@ -167,19 +209,23 @@ h1{
   font-size:22px; margin:0; letter-spacing:.02em;
 }
 .slip-head p{margin:4px 0 0; color:var(--ink-2); font-size:14px}
-.slip ol{list-style:none; margin:0; padding:6px 18px 14px}
-.slip li{
-  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
-  padding:11px 0; border-bottom:1px solid var(--line);
-}
+.slip ol{list-style:none; margin:0; padding:4px 18px 14px}
+.slip li{padding:11px 0; border-bottom:1px solid var(--line)}
 .slip li:last-child{border-bottom:0}
+.prow{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.prow + .prow{margin-top:5px}
 .pick-team{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; letter-spacing:.01em}
 .pick-opp{display:block; font-family:"IBM Plex Sans",sans-serif; text-transform:none; font-size:12px; color:var(--ink-2); letter-spacing:0}
+.pick-tag{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3);
+}
 .pick-line{
   font-family:"IBM Plex Mono",monospace; font-weight:600; font-variant-numeric:tabular-nums;
   font-size:16px; color:var(--gold); white-space:nowrap;
 }
-.slip-actions{display:flex; flex-direction:column; gap:8px; padding:0 18px 18px}
+.pick-line.sm{font-size:13px}
+.slip-actions{display:flex; flex-direction:column; gap:8px; padding:4px 18px 18px}
 .slip-actions .row{display:flex; gap:8px}
 .slip-actions .row .btn{flex:1}
 .note{font-size:13px; color:var(--ink-2); text-align:center; margin:2px 0 0}
@@ -188,18 +234,18 @@ h1{
 /* ---------- editor ---------- */
 .editor{
   background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-  padding:16px; margin-top:22px; box-shadow:var(--shadow);
+  padding:16px; margin-top:18px; box-shadow:var(--shadow);
 }
 .editor h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; margin:0 0 6px}
 .editor p{margin:0 0 12px; font-size:14px; color:var(--ink-2)}
 .editor code{font-family:"IBM Plex Mono",monospace; font-size:12.5px; background:var(--sunk); padding:1px 5px; border-radius:4px}
 .editor textarea{
-  width:100%; min-height:150px; resize:vertical; font-family:"IBM Plex Mono",monospace; font-size:13px;
+  width:100%; min-height:130px; resize:vertical; font-family:"IBM Plex Mono",monospace; font-size:13px;
   line-height:1.7; padding:12px; border-radius:8px; border:1px solid var(--line-strong);
   background:var(--sunk); color:var(--ink);
 }
-.editor .row{display:flex; gap:8px; margin-top:10px}
-.editor .row .btn{flex:1; font-size:14px; padding:11px 12px}
+.editor .row{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+.editor .row .btn{flex:1 1 140px; font-size:14px; padding:11px 12px}
 .err{color:#B3261E; font-size:13px; margin-top:8px}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .err{color:#F2A9A2} }
 :root[data-theme="dark"] .err{color:#F2A9A2}
@@ -208,28 +254,30 @@ footer{
   padding:28px 0 36px; color:var(--ink-3); font-size:12px; text-align:center;
   font-family:"IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase;
 }
-.hidden{display:none !important}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="topbar">
     <div>
-      <p class="eyebrow" id="eyebrow">NFL · Against the spread</p>
+      <p class="eyebrow">NFL · Spread &amp; total</p>
       <h1>Sunday Slip</h1>
-      <p class="sub">Tap the team you think covers. Minus means they give points, plus means they get them.</p>
+      <p class="sub">Two calls per game: who covers the spread, and whether the two teams combined go over or under the total.</p>
     </div>
-    <button class="linkbtn" id="editToggle" type="button">Set the lines</button>
+    <button class="linkbtn" id="editToggle" type="button">Edit lines</button>
   </header>
 
-  <section class="editor hidden" id="editor" aria-label="Set this week's lines">
-    <h2>This week's lines</h2>
-    <p>One game per line: <code>Bills -1.5 vs Texans, Sun 1:00 PM ET</code>. Put the spread on the favorite; the other side flips automatically. The kickoff note after the comma is optional.</p>
+  <p class="source" id="source"><span class="led"></span><span id="sourceText">Loading the board</span></p>
+
+  <section class="editor hidden" id="editor" aria-label="Edit the lines by hand">
+    <h2>Set the lines by hand</h2>
+    <p>Only needed if the live board is wrong or missing a game. One per line: <code>Bills -1.5 vs Texans | 44.5 | Sun 1:00 PM</code> — matchup, then total, then kickoff. Put the spread on the favorite; the other side flips automatically.</p>
     <label for="slateText" class="hidden">Games</label>
     <textarea id="slateText" spellcheck="false"></textarea>
     <div class="err hidden" id="editErr"></div>
     <div class="row">
-      <button class="btn ghost" id="applyBtn" type="button">Update board</button>
+      <button class="btn ghost" id="reloadBtn" type="button">Reload live lines</button>
+      <button class="btn ghost" id="applyBtn" type="button">Use these lines</button>
       <button class="btn" id="shareBtn" type="button">Copy link to send</button>
     </div>
     <p class="note" id="editNote"></p>
@@ -247,6 +295,10 @@ footer{
     </div>
 
     <ul class="games" id="games"></ul>
+    <div class="empty hidden" id="empty">
+      <h2>Board's clear</h2>
+      <p id="emptyText">Every game has kicked off. Check back once next week's lines are posted.</p>
+    </div>
 
     <div class="bar">
       <button class="btn" id="submitBtn" type="button" disabled>Pick every game first</button>
@@ -266,35 +318,111 @@ footer{
   /* Where the "Email picks" button sends to. Blank it out to drop it. */
   var SEND_TO = "tonycorrales34@gmail.com";
 
-  /* The board shown when no ?g= link is used. Edit here, or use the
-     "Set the lines" panel on the page, which builds a link for you. */
-  var DEFAULT_SLATE = [
-    "Bills -1.5 vs Texans, Sun 1:00 PM ET",
-    "Falcons vs Steelers -6.5, Sun 1:00 PM ET"
-  ].join("\n");
+  /* Live board: ESPN's public scoreboard. No key, no signup, CORS-open.
+     Spreads and totals are DraftKings' numbers as ESPN publishes them. */
+  var FEED = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+
+  /* Shown instantly on load, and kept if the live fetch can't run —
+     which is the case inside a Claude artifact frame, where outbound
+     requests are blocked. Refreshed whenever this file is rebuilt. */
+  var SNAPSHOT = {"capturedAt":"2026-09-13T15:15:12Z","label":"Week 1","games":[{"id":"401872925","date":"2026-09-13T17:00Z","net":"FOX","total":50.5,"sides":[{"nick":"Buccaneers","city":"Tampa Bay","color":"#bd1c36","spread":3.5},{"nick":"Bengals","city":"Cincinnati","color":"#fb4f14","spread":-3.5}]},{"id":"401872923","date":"2026-09-13T17:00Z","net":"FOX","total":49.5,"sides":[{"nick":"Saints","city":"New Orleans","color":"#d3bc8d","spread":7.0},{"nick":"Lions","city":"Detroit","color":"#0076b6","spread":-7.0}]},{"id":"401872924","date":"2026-09-13T17:00Z","net":"CBS","total":38.5,"sides":[{"nick":"Jets","city":"New York","color":"#115740","spread":1.5},{"nick":"Titans","city":"Tennessee","color":"#4495d2","spread":-1.5}]},{"id":"401872659","date":"2026-09-13T17:00Z","net":"CBS","total":48.5,"sides":[{"nick":"Ravens","city":"Baltimore","color":"#29126f","spread":-3.5},{"nick":"Colts","city":"Indianapolis","color":"#003b75","spread":3.5}]},{"id":"401872658","date":"2026-09-13T17:00Z","net":"FOX","total":40.5,"sides":[{"nick":"Falcons","city":"Atlanta","color":"#a71930","spread":6.5},{"nick":"Steelers","city":"Pittsburgh","color":"#000000","spread":-6.5}]},{"id":"401872661","date":"2026-09-13T17:00Z","net":"FOX","total":47.5,"sides":[{"nick":"Bears","city":"Chicago","color":"#0b1c3a","spread":-3.0},{"nick":"Panthers","city":"Carolina","color":"#0085ca","spread":3.0}]},{"id":"401872922","date":"2026-09-13T17:00Z","net":"CBS","total":40.5,"sides":[{"nick":"Browns","city":"Cleveland","color":"#472a08","spread":8.5},{"nick":"Jaguars","city":"Jacksonville","color":"#007487","spread":-8.5}]},{"id":"401872660","date":"2026-09-13T17:00Z","net":"CBS","total":44.5,"sides":[{"nick":"Bills","city":"Buffalo","color":"#00338d","spread":-1.5},{"nick":"Texans","city":"Houston","color":"#021018","spread":1.5}]},{"id":"401872928","date":"2026-09-13T20:25Z","net":"FOX","total":40.5,"sides":[{"nick":"Dolphins","city":"Miami","color":"#008e97","spread":3.0},{"nick":"Raiders","city":"Las Vegas","color":"#000000","spread":-3.0}]},{"id":"401872927","date":"2026-09-13T20:25Z","net":"CBS","total":46.5,"sides":[{"nick":"Packers","city":"Green Bay","color":"#204e32","spread":1.5},{"nick":"Vikings","city":"Minnesota","color":"#4f2683","spread":-1.5}]},{"id":"401872929","date":"2026-09-13T20:25Z","net":"FOX","total":44.5,"sides":[{"nick":"Commanders","city":"Washington","color":"#5a1414","spread":6.0},{"nick":"Eagles","city":"Philadelphia","color":"#06424d","spread":-6.0}]},{"id":"401872926","date":"2026-09-13T20:25Z","net":"CBS","total":47.5,"sides":[{"nick":"Cardinals","city":"Arizona","color":"#a40227","spread":9.5},{"nick":"Chargers","city":"Los Angeles","color":"#0080c6","spread":-9.5}]},{"id":"401872930","date":"2026-09-14T00:20Z","net":"NBC","total":47.5,"sides":[{"nick":"Cowboys","city":"Dallas","color":"#002a5c","spread":-3.0},{"nick":"Giants","city":"New York","color":"#003c7f","spread":3.0}]},{"id":"401872931","date":"2026-09-15T00:15Z","net":"ESPN","total":43.5,"sides":[{"nick":"Broncos","city":"Denver","color":"#0a2343","spread":2.5},{"nick":"Chiefs","city":"Kansas City","color":"#e31837","spread":-2.5}]}]};
   /* ================================================================ */
 
-  var TEAMS = {
-    cardinals:["Arizona","#97233F"], falcons:["Atlanta","#A71930"], ravens:["Baltimore","#241773"],
-    bills:["Buffalo","#00338D"], panthers:["Carolina","#0085CA"], bears:["Chicago","#0B162A"],
-    bengals:["Cincinnati","#FB4F14"], browns:["Cleveland","#7B4B22"], cowboys:["Dallas","#041E42"],
-    broncos:["Denver","#FB4F14"], lions:["Detroit","#0076B6"], packers:["Green Bay","#203731"],
-    texans:["Houston","#03202F"], colts:["Indianapolis","#002C5F"], jaguars:["Jacksonville","#006778"],
-    chiefs:["Kansas City","#E31837"], raiders:["Las Vegas","#4D4D4D"], chargers:["Los Angeles","#0080C6"],
-    rams:["Los Angeles","#003594"], dolphins:["Miami","#008E97"], vikings:["Minnesota","#4F2683"],
-    patriots:["New England","#002244"], saints:["New Orleans","#A08A55"], giants:["New York","#0B2265"],
-    jets:["New York","#125740"], eagles:["Philadelphia","#004C54"], steelers:["Pittsburgh","#FFB612"],
-    "49ers":["San Francisco","#AA0000"], seahawks:["Seattle","#69BE28"], buccaneers:["Tampa Bay","#D50A0A"],
-    titans:["Tennessee","#4B92DB"], commanders:["Washington","#5A1414"]
-  };
-
   var $ = function(id){ return document.getElementById(id); };
-  var games = [], picks = {};
+  var games = [], picks = {}, live = false;
 
-  /* ---------- parsing ---------- */
+  /* ---------- formatting ---------- */
+  function fmtSpread(n){
+    if (!n) return "PK";
+    return (n < 0 ? "-" : "+") + Math.abs(n);
+  }
+  function fmtKick(g){
+    if (g.when) return g.when;
+    if (!g.date) return "Kickoff TBD";
+    var d = new Date(g.date);
+    if (isNaN(d)) return "Kickoff TBD";
+    var s = d.toLocaleString(undefined, { weekday:"short", hour:"numeric", minute:"2-digit" });
+    return g.net ? s + " · " + g.net : s;
+  }
+  function upcoming(g){
+    if (!g.date) return true;
+    var d = new Date(g.date);
+    return isNaN(d) ? true : d.getTime() > Date.now();
+  }
+
+  /* ---------- the live feed ---------- */
+  function normalize(feed){
+    var out = [];
+    var events = (feed && feed.events) || [];
+    for (var i = 0; i < events.length; i++){
+      var e = events[i];
+      var c = (e.competitions || [])[0];
+      if (!c) continue;
+      var state = ((c.status || {}).type || {}).state;
+      if (state && state !== "pre") continue;
+
+      var odds = (c.odds || [])[0];
+      if (!odds || odds.spread === undefined || odds.spread === null) continue;
+      var favAbbr = String(odds.details || "").split(" ")[0];
+      var mag = Math.abs(Number(odds.spread));
+
+      var byHome = {};
+      for (var j = 0; j < (c.competitors || []).length; j++){
+        var t = c.competitors[j], tm = t.team || {};
+        byHome[t.homeAway] = {
+          nick: tm.shortDisplayName || tm.name || tm.displayName || "",
+          city: tm.location || "",
+          color: tm.color ? "#" + String(tm.color).replace(/^#/, "") : "",
+          spread: mag ? (tm.abbreviation === favAbbr ? -mag : mag) : 0
+        };
+      }
+      if (!byHome.home || !byHome.away) continue;
+
+      var bc = (c.broadcasts || [])[0];
+      out.push({
+        id: String(e.id),
+        date: e.date,
+        net: (bc && bc.names && bc.names[0]) || "",
+        total: (odds.overUnder === undefined || odds.overUnder === null) ? null : Number(odds.overUnder),
+        sides: [byHome.away, byHome.home]
+      });
+    }
+    out.sort(function(a, b){ return new Date(a.date) - new Date(b.date); });
+    return { label: "Week " + (((feed || {}).week || {}).number || ""), games: out };
+  }
+
+  function loadLive(onDone){
+    var done = false;
+    var finish = function(ok, err){ if (!done){ done = true; onDone(ok, err); } };
+    var timer = setTimeout(function(){ finish(false, "timeout"); }, 9000);
+
+    try {
+      fetch(FEED, { cache: "no-store" })
+        .then(function(r){
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(function(feed){
+          clearTimeout(timer);
+          var norm = normalize(feed);
+          if (!norm.games.length) return finish(false, "no games");
+          setBoard(norm.games, norm.label + " · live lines");
+          live = true;
+          finish(true);
+        })
+        .catch(function(e){
+          clearTimeout(timer);
+          finish(false, String((e && e.message) || e));
+        });
+    } catch(e){
+      clearTimeout(timer);
+      finish(false, "blocked");
+    }
+  }
+
+  /* ---------- hand-entered lines ---------- */
   function parseSide(raw){
-    var s = raw.trim().replace(/\s+/g," ");
-    var spread = null;
+    var s = raw.trim().replace(/\s+/g, " "), spread = null;
     var m = s.match(/^(.+?)\s+(pk|ev|even|[+-]?\d+(?:\.\d+)?)$/i);
     if (m){
       s = m[1].trim();
@@ -304,49 +432,79 @@ footer{
     return { name: s, spread: spread };
   }
 
-  function teamInfo(name){
-    var key = name.toLowerCase().replace(/[^a-z0-9]/g,"");
-    var t = TEAMS[key];
-    return { city: t ? t[0] : "", color: t ? t[1] : "", nick: name };
-  }
-
-  function fmtSpread(n){
-    if (n === 0) return "PK";
-    var s = Math.abs(n) % 1 === 0 ? String(Math.abs(n)) : String(Math.abs(n));
-    return (n < 0 ? "-" : "+") + s;
-  }
-
   function parseSlate(text){
-    var out = [], lines = String(text).split("\n"), errs = [];
+    var out = [], errs = [], lines = String(text).split("\n");
     for (var i = 0; i < lines.length; i++){
       var line = lines[i].trim();
       if (!line) continue;
-      var kickoff = "", body = line;
-      var c = line.lastIndexOf(",");
-      if (c > -1){ kickoff = line.slice(c + 1).trim(); body = line.slice(0, c); }
-      var parts = body.split(/\s+(?:vs\.?|@|at)\s+/i);
-      if (parts.length !== 2){ errs.push('Line ' + (i+1) + ': need two teams separated by "vs".'); continue; }
+      var cols = line.split("|").map(function(s){ return s.trim(); });
+      var parts = cols[0].split(/\s+(?:vs\.?|@|at)\s+/i);
+      if (parts.length !== 2){ errs.push("Line " + (i + 1) + ': needs two teams separated by "vs".'); continue; }
+
+      var total = null, when = "";
+      for (var k = 1; k < cols.length; k++){
+        if (!cols[k]) continue;
+        if (total === null && /^\d+(\.\d+)?$/.test(cols[k])) total = parseFloat(cols[k]);
+        else if (!when) when = cols[k];
+      }
+
       var a = parseSide(parts[0]), b = parseSide(parts[1]);
+      if (!a.name || !b.name){ errs.push("Line " + (i + 1) + ": missing a team name."); continue; }
       if (a.spread === null && b.spread === null){ a.spread = 0; b.spread = 0; }
       else if (a.spread === null) a.spread = -b.spread;
       else if (b.spread === null) b.spread = -a.spread;
-      if (!a.name || !b.name){ errs.push('Line ' + (i+1) + ': missing a team name.'); continue; }
+
       out.push({
-        id: "g" + i + "-" + a.name.toLowerCase().replace(/[^a-z0-9]/g,"") + "-" + b.name.toLowerCase().replace(/[^a-z0-9]/g,""),
-        kickoff: kickoff,
+        id: "m" + i,
+        date: null,
+        when: when,
+        net: "",
+        total: total,
         sides: [
-          { name: a.name, spread: a.spread, info: teamInfo(a.name) },
-          { name: b.name, spread: b.spread, info: teamInfo(b.name) }
+          { nick: a.name, city: "", color: "", spread: a.spread },
+          { nick: b.name, city: "", color: "", spread: b.spread }
         ]
       });
     }
     return { games: out, errors: errs };
   }
 
+  function slateToText(list){
+    return list.map(function(g){
+      var fav = g.sides[0].spread <= g.sides[1].spread ? 0 : 1;
+      var line = g.sides[0].nick + (fav === 0 ? " " + fmtSpread(g.sides[0].spread) : "") +
+                 " vs " + g.sides[1].nick + (fav === 1 ? " " + fmtSpread(g.sides[1].spread) : "");
+      var cols = [line];
+      if (g.total !== null && g.total !== undefined) cols.push(String(g.total));
+      cols.push(fmtKick(g));
+      return cols.join(" | ");
+    }).join("\n");
+  }
+
+  /* ---------- board state ---------- */
+  function setBoard(list, sourceLabel, tone){
+    games = list.filter(upcoming);
+    picks = {};
+    render();
+    $("slateText").value = slateToText(games);
+    $("sourceText").textContent = sourceLabel;
+    $("source").className = "source " + (tone || (live ? "live" : "stale"));
+  }
+
+  function needed(g){ return 1 + (g.total === null || g.total === undefined ? 0 : 1); }
+  function made(g){
+    var p = picks[g.id] || {};
+    return (p.side === undefined ? 0 : 1) + (p.total === undefined ? 0 : 1);
+  }
+
   /* ---------- rendering ---------- */
   function render(){
     var list = $("games");
     list.textContent = "";
+
+    $("empty").classList.toggle("hidden", games.length > 0);
+    list.classList.toggle("hidden", games.length === 0);
+
     games.forEach(function(g){
       var li = document.createElement("li");
       li.className = "game";
@@ -355,93 +513,140 @@ footer{
       var head = document.createElement("div");
       head.className = "gm-head";
       var when = document.createElement("span");
-      when.textContent = g.kickoff || "Kickoff TBD";
+      when.className = "when";
+      when.textContent = fmtKick(g);
       var chip = document.createElement("span");
       chip.className = "chip";
-      chip.textContent = "Pick one";
-      head.appendChild(when); head.appendChild(chip);
+      head.appendChild(when);
+      head.appendChild(chip);
 
       var row = document.createElement("div");
       row.className = "matchup";
-
       g.sides.forEach(function(side, idx){
         if (idx === 1){
           var at = document.createElement("span");
           at.className = "at";
-          at.textContent = "vs";
+          at.textContent = g.date ? "at" : "vs";
           row.appendChild(at);
         }
         var b = document.createElement("button");
         b.type = "button";
         b.className = "side";
-        b.id = "pick-" + g.id + "-" + idx;
+        b.id = "side-" + g.id + "-" + idx;
         b.setAttribute("aria-pressed", "false");
-        if (side.info.color) b.style.setProperty("--team", side.info.color);
+        if (side.color) b.style.setProperty("--team", side.color);
 
         var city = document.createElement("span");
         city.className = "city";
-        city.textContent = side.info.city || " ";
+        city.textContent = side.city || " ";
         var team = document.createElement("span");
         team.className = "team";
-        team.textContent = side.name;
+        team.textContent = side.nick;
         var ln = document.createElement("span");
         ln.className = "line";
         ln.textContent = fmtSpread(side.spread);
 
         b.appendChild(city); b.appendChild(team); b.appendChild(ln);
-        b.addEventListener("click", function(){ choose(g.id, idx); });
+        b.addEventListener("click", function(){
+          var p = picks[g.id] || (picks[g.id] = {});
+          p.side = (p.side === idx) ? undefined : idx;
+          refresh();
+        });
         row.appendChild(b);
       });
 
-      li.appendChild(head); li.appendChild(row);
+      li.appendChild(head);
+      li.appendChild(row);
+
+      if (g.total !== null && g.total !== undefined){
+        var tr = document.createElement("div");
+        tr.className = "totalrow";
+        var lab = document.createElement("span");
+        lab.className = "tlabel";
+        lab.textContent = "Total ";
+        var strong = document.createElement("b");
+        strong.textContent = g.total;
+        lab.appendChild(strong);
+        var btns = document.createElement("div");
+        btns.className = "tbtns";
+        ["over", "under"].forEach(function(dir){
+          var t = document.createElement("button");
+          t.type = "button";
+          t.className = "tot";
+          t.id = "tot-" + g.id + "-" + dir;
+          t.setAttribute("aria-pressed", "false");
+          t.textContent = (dir === "over" ? "Over " : "Under ") + g.total;
+          t.addEventListener("click", function(){
+            var p = picks[g.id] || (picks[g.id] = {});
+            p.total = (p.total === dir) ? undefined : dir;
+            refresh();
+          });
+          btns.appendChild(t);
+        });
+        tr.appendChild(lab);
+        tr.appendChild(btns);
+        li.appendChild(tr);
+      }
+
       list.appendChild(li);
     });
     refresh();
   }
 
-  function choose(gameId, idx){
-    picks[gameId] = (picks[gameId] === idx) ? undefined : idx;
-    if (picks[gameId] === undefined) delete picks[gameId];
-    refresh();
-  }
-
   function refresh(){
-    var made = 0;
+    var done = 0, want = 0;
     games.forEach(function(g){
-      var chosen = picks[g.id];
+      var p = picks[g.id] || {};
+      var n = needed(g), m = made(g);
+      want += n; done += m;
+
       var card = $("card-" + g.id);
       if (!card) return;
-      if (chosen !== undefined) made++;
-      card.classList.toggle("done", chosen !== undefined);
-      card.querySelector(".chip").textContent = chosen !== undefined ? "Locked in" : "Pick one";
+      card.classList.toggle("done", m === n);
+      card.querySelector(".chip").textContent = (m === n) ? "Locked in" : m + " of " + n;
+
       g.sides.forEach(function(_, i){
-        var b = $("pick-" + g.id + "-" + i);
-        if (b) b.setAttribute("aria-pressed", chosen === i ? "true" : "false");
+        var b = $("side-" + g.id + "-" + i);
+        if (b) b.setAttribute("aria-pressed", p.side === i ? "true" : "false");
+      });
+      ["over", "under"].forEach(function(dir){
+        var t = $("tot-" + g.id + "-" + dir);
+        if (t) t.setAttribute("aria-pressed", p.total === dir ? "true" : "false");
       });
     });
-    $("count").textContent = made + " of " + games.length;
-    $("fill").style.width = (games.length ? (made / games.length) * 100 : 0) + "%";
+
+    $("count").textContent = done + " of " + want;
+    $("fill").style.width = (want ? (done / want) * 100 : 0) + "%";
+
     var btn = $("submitBtn");
-    var all = games.length > 0 && made === games.length;
+    var all = want > 0 && done === want;
     btn.disabled = !all;
-    btn.textContent = all ? "Review and send" : (games.length - made) + " game" + (games.length - made === 1 ? "" : "s") + " to go";
+    btn.textContent = !games.length ? "Nothing to pick"
+      : all ? "Review and send"
+      : (want - done) + " left to pick";
   }
 
   /* ---------- summary ---------- */
-  function chosenPicks(){
+  function chosen(){
     return games.map(function(g){
-      var i = picks[g.id];
-      return { team: g.sides[i], opp: g.sides[1 - i] };
+      var p = picks[g.id] || {};
+      return {
+        team: g.sides[p.side],
+        opp: g.sides[1 - p.side],
+        total: g.total,
+        dir: p.total
+      };
     });
   }
 
   function pickText(){
     var name = $("who").value.trim();
-    var lines = chosenPicks().map(function(p){
-      return "- " + p.team.name + " " + fmtSpread(p.team.spread) + " over " + p.opp.name;
+    var lines = chosen().map(function(p){
+      var s = "- " + p.team.nick + " " + fmtSpread(p.team.spread) + " over " + p.opp.nick;
+      if (p.dir) s += "  |  " + (p.dir === "over" ? "Over " : "Under ") + p.total;
+      return s;
     });
-    var d = new Date();
-    var stamp = d.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+    var stamp = new Date().toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
     return (name ? name + "'s picks" : "My picks") + " — " + stamp + "\n" + lines.join("\n");
   }
 
@@ -449,6 +654,8 @@ footer{
     var name = $("who").value.trim();
     var slip = $("slip");
     $("picker").classList.add("hidden");
+    $("editor").classList.add("hidden");
+    $("editToggle").textContent = "Edit lines";
     slip.classList.remove("hidden");
     slip.textContent = "";
 
@@ -457,23 +664,41 @@ footer{
     var h2 = document.createElement("h2");
     h2.textContent = name ? name + "'s slip" : "Your slip";
     var p = document.createElement("p");
-    p.textContent = games.length + " picks against the spread. Send them over, then you're done.";
+    p.textContent = games.length + (games.length === 1 ? " game" : " games") + ", spread and total. Send it over and you're done.";
     head.appendChild(h2); head.appendChild(p);
 
     var ol = document.createElement("ol");
-    chosenPicks().forEach(function(pick){
+    chosen().forEach(function(pick){
       var li = document.createElement("li");
+
+      var r1 = document.createElement("div");
+      r1.className = "prow";
       var left = document.createElement("span");
       left.className = "pick-team";
-      left.textContent = pick.team.name;
+      left.textContent = pick.team.nick;
       var opp = document.createElement("span");
       opp.className = "pick-opp";
-      opp.textContent = "over " + pick.opp.name;
+      opp.textContent = "over " + pick.opp.nick;
       left.appendChild(opp);
       var right = document.createElement("span");
       right.className = "pick-line";
       right.textContent = fmtSpread(pick.team.spread);
-      li.appendChild(left); li.appendChild(right);
+      r1.appendChild(left); r1.appendChild(right);
+      li.appendChild(r1);
+
+      if (pick.dir){
+        var r2 = document.createElement("div");
+        r2.className = "prow";
+        var tag = document.createElement("span");
+        tag.className = "pick-tag";
+        tag.textContent = "Total";
+        var val = document.createElement("span");
+        val.className = "pick-line sm";
+        val.textContent = (pick.dir === "over" ? "Over " : "Under ") + pick.total;
+        r2.appendChild(tag); r2.appendChild(val);
+        li.appendChild(r2);
+      }
+
       ol.appendChild(li);
     });
 
@@ -481,7 +706,7 @@ footer{
     acts.className = "slip-actions";
 
     var copy = document.createElement("button");
-    copy.type = "button"; copy.className = "btn"; copy.id = "copyBtn";
+    copy.type = "button"; copy.className = "btn";
     copy.textContent = "Copy picks";
 
     var row = document.createElement("div");
@@ -494,18 +719,19 @@ footer{
     if (SEND_TO){
       var mail = document.createElement("a");
       mail.className = "btn ghost"; mail.style.textAlign = "center"; mail.style.textDecoration = "none";
-      mail.href = "mailto:" + SEND_TO + "?subject=" + encodeURIComponent((name ? name + "'s " : "") + "NFL picks") +
+      mail.href = "mailto:" + SEND_TO +
+                  "?subject=" + encodeURIComponent((name ? name + "'s " : "") + "NFL picks") +
                   "&body=" + encodeURIComponent(pickText());
       mail.textContent = "Email picks";
       row.appendChild(mail);
     }
 
     var back = document.createElement("button");
-    back.type = "button"; back.className = "btn ghost"; back.id = "backBtn";
+    back.type = "button"; back.className = "btn ghost";
     back.textContent = "Change a pick";
 
     var note = document.createElement("p");
-    note.className = "note"; note.id = "copyNote";
+    note.className = "note";
     note.textContent = "Copy drops them on your clipboard — paste into a text.";
 
     acts.appendChild(copy); acts.appendChild(row); acts.appendChild(back); acts.appendChild(note);
@@ -513,7 +739,8 @@ footer{
 
     copy.addEventListener("click", function(){
       copyToClipboard(pickText(), function(ok){
-        note.textContent = ok ? "Copied. Paste it into a text and hit send." : "Couldn't copy — select the picks above and copy them by hand.";
+        note.textContent = ok ? "Copied. Paste it into a text and hit send."
+                              : "Couldn't copy — select the picks above and copy them by hand.";
         note.className = ok ? "note ok" : "note";
       });
     });
@@ -546,44 +773,65 @@ footer{
     } catch(e){ return false; }
   }
 
-  /* ---------- slate loading / sharing ---------- */
-  function slateFromUrl(){
-    try{
-      var q = new URLSearchParams(window.location.search).get("g");
-      if (q) return q;
-      if (window.location.hash.indexOf("#g=") === 0) return decodeURIComponent(window.location.hash.slice(3));
-    } catch(e){}
-    return null;
+  /* ---------- boot ---------- */
+  function capturedLabel(){
+    var d = new Date(SNAPSHOT.capturedAt);
+    var when = isNaN(d) ? SNAPSHOT.capturedAt
+                        : d.toLocaleDateString(undefined, { month:"short", day:"numeric" });
+    return SNAPSHOT.label + " · saved lines from " + when;
   }
 
-  function loadSlate(text){
-    var res = parseSlate(text);
-    games = res.games;
-    picks = {};
-    render();
-    return res;
+  var fromUrl = null;
+  try {
+    var q = new URLSearchParams(window.location.search).get("g");
+    if (q) fromUrl = q;
+  } catch(e){}
+
+  if (fromUrl){
+    var man = parseSlate(fromUrl);
+    if (man.games.length){
+      $("slateText").value = fromUrl;
+      setBoard(man.games, "Lines set by hand", "stale");
+    } else {
+      fromUrl = null;
+    }
   }
 
-  function shareLink(text){
-    var base = window.location.origin + window.location.pathname;
-    if (base.indexOf("http") !== 0) base = window.location.href.split("#")[0].split("?")[0];
-    return base + "?g=" + encodeURIComponent(text);
+  if (!fromUrl){
+    setBoard(SNAPSHOT.games.slice(), capturedLabel(), "stale");
+    $("sourceText").textContent = capturedLabel() + " · checking for live";
+    loadLive(function(ok, err){
+      if (ok) return;
+      var label = capturedLabel();
+      $("sourceText").textContent = games.length ? label + " · live lines unreachable"
+                                                 : label;
+      $("source").className = "source stale";
+      $("emptyText").textContent =
+        "These saved lines have all kicked off, and live odds can't be reached from here. " +
+        "Open the hosted page for this week's board, or set the lines by hand.";
+    });
   }
 
-  /* ---------- wire up ---------- */
-  var initial = slateFromUrl() || DEFAULT_SLATE;
-  $("slateText").value = initial;
-  var first = loadSlate(initial);
-  if (first.games.length === 0){
-    $("slateText").value = DEFAULT_SLATE;
-    loadSlate(DEFAULT_SLATE);
-  }
+  /* ---------- wiring ---------- */
+  var framed = false;
+  try { framed = window.top !== window.self; } catch(e){ framed = true; }
+  if (framed) $("shareBtn").classList.add("hidden");
 
   $("editToggle").addEventListener("click", function(){
-    var ed = $("editor");
-    var open = ed.classList.toggle("hidden") === false;
-    this.textContent = open ? "Hide lines" : "Set the lines";
+    var open = $("editor").classList.toggle("hidden") === false;
+    this.textContent = open ? "Hide lines" : "Edit lines";
     if (open) $("slateText").focus();
+  });
+
+  $("reloadBtn").addEventListener("click", function(){
+    $("editNote").textContent = "Fetching…";
+    $("editNote").className = "note";
+    loadLive(function(ok, err){
+      $("editNote").textContent = ok ? "Live lines loaded."
+        : "Couldn't reach the live board (" + err + ")" +
+          (framed ? " — outbound requests are blocked inside a Claude artifact." : ".");
+      $("editNote").className = ok ? "note ok" : "note";
+    });
   });
 
   $("applyBtn").addEventListener("click", function(){
@@ -596,21 +844,17 @@ footer{
       err.classList.add("hidden");
     }
     if (res.games.length){
-      loadSlate($("slateText").value);
+      live = false;
+      var text = $("slateText").value;
+      setBoard(res.games, "Lines set by hand", "stale");
+      $("slateText").value = text;
       $("slip").classList.add("hidden");
       $("picker").classList.remove("hidden");
-      $("editNote").textContent = "Board updated — " + res.games.length + " game" + (res.games.length === 1 ? "" : "s") + ".";
+      $("editNote").textContent = "Board updated — " + res.games.length +
+        (res.games.length === 1 ? " game." : " games.");
       $("editNote").className = "note ok";
     }
   });
-
-  var framed = false;
-  try { framed = window.top !== window.self; } catch(e){ framed = true; }
-  if (framed){
-    $("shareBtn").classList.add("hidden");
-    $("applyBtn").classList.remove("ghost");
-    $("editNote").textContent = "Updating the board here applies to your own screen only. To send a link with these lines baked in, host index.html on its own (see the README).";
-  }
 
   $("shareBtn").addEventListener("click", function(){
     var res = parseSlate($("slateText").value);
@@ -619,11 +863,11 @@ footer{
       $("editErr").classList.remove("hidden");
       return;
     }
-    loadSlate($("slateText").value);
-    var note = $("editNote");
-    copyToClipboard(shareLink($("slateText").value), function(ok){
-      note.textContent = ok ? "Link copied — send it over and these lines load for him." : "Couldn't copy the link automatically.";
-      note.className = ok ? "note ok" : "note";
+    var base = window.location.href.split("#")[0].split("?")[0];
+    copyToClipboard(base + "?g=" + encodeURIComponent($("slateText").value), function(ok){
+      $("editNote").textContent = ok ? "Link copied — these exact lines load for whoever opens it."
+                                     : "Couldn't copy the link automatically.";
+      $("editNote").className = ok ? "note ok" : "note";
     });
   });
 
