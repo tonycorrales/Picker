@@ -604,6 +604,14 @@ footer{
     }
   });
 
+  var framed = false;
+  try { framed = window.top !== window.self; } catch(e){ framed = true; }
+  if (framed){
+    $("shareBtn").classList.add("hidden");
+    $("applyBtn").classList.remove("ghost");
+    $("editNote").textContent = "Updating the board here applies to your own screen only. To send a link with these lines baked in, host index.html on its own (see the README).";
+  }
+
   $("shareBtn").addEventListener("click", function(){
     var res = parseSlate($("slateText").value);
     if (!res.games.length){
