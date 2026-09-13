@@ -14,6 +14,7 @@
   --line:#CDD6C8; --line-strong:#B3BFAD;
   --accent:#14603C; --accent-ink:#FFFFFF; --accent-soft:#DCEBE1;
   --gold:#9A6E05;
+  --win:#14603C; --loss:#9E2A2B; --push:#8A978E;
   --shadow:0 1px 2px rgba(20,28,22,.06), 0 8px 20px -12px rgba(20,28,22,.24);
   --stripe-filter:none;
   --radius:10px;
@@ -25,6 +26,7 @@
     --line:#2A352C; --line-strong:#3A4A3D;
     --accent:#3FA06A; --accent-ink:#06150C; --accent-soft:#1C2E23;
     --gold:#F2C14E;
+    --win:#5FBE86; --loss:#E8837E; --push:#75857A;
     --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px -14px rgba(0,0,0,.8);
     --stripe-filter:brightness(1.9) saturate(1.15);
   }
@@ -35,6 +37,7 @@
   --line:#2A352C; --line-strong:#3A4A3D;
   --accent:#3FA06A; --accent-ink:#06150C; --accent-soft:#1C2E23;
   --gold:#F2C14E;
+  --win:#5FBE86; --loss:#E8837E; --push:#75857A;
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px -14px rgba(0,0,0,.8);
   --stripe-filter:brightness(1.9) saturate(1.15);
 }
@@ -46,7 +49,7 @@ body{
   font-family:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   font-size:16px; line-height:1.5;
 }
-.wrap{max-width:620px; margin:0 auto; padding-inline:18px; padding-block:28px 0}
+.wrap{max-width:640px; margin:0 auto; padding-inline:18px; padding-block:28px 0}
 button{font:inherit; color:inherit}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
 @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
@@ -64,12 +67,11 @@ h1{
 }
 .sub{margin:8px 0 0; color:var(--ink-2); font-size:15px; max-width:48ch}
 .topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:14px}
-.linkbtn{
-  background:none; border:0; padding:4px 0; cursor:pointer; white-space:nowrap;
-  font-size:13px; font-weight:500; color:var(--ink-2);
-  border-bottom:1px solid var(--line-strong);
+.whoami{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); text-align:right; white-space:nowrap;
 }
-.linkbtn:hover{color:var(--ink)}
+.whoami b{display:block; color:var(--ink); font-size:13px; letter-spacing:.06em}
 
 /* ---------- source strip ---------- */
 .source{
@@ -80,23 +82,30 @@ h1{
 .led{width:7px; height:7px; border-radius:99px; background:var(--ink-3); flex:none}
 .source.live .led{background:var(--accent)}
 .source.live{color:var(--ink-2)}
-.source.stale .led{background:var(--gold)}
+.source.warn .led{background:var(--gold)}
 
-/* ---------- name ---------- */
-.namerow{
-  display:flex; align-items:center; gap:10px; margin-top:14px;
-  padding:10px 12px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+/* ---------- panels ---------- */
+.panel{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:20px; margin-top:18px;
 }
-.namerow label{
+.panel h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:20px; margin:0 0 8px; letter-spacing:.02em}
+.panel p{margin:0 0 14px; color:var(--ink-2); font-size:14.5px}
+.panel p:last-child{margin-bottom:0}
+.field{
+  display:flex; align-items:center; gap:10px; margin-bottom:12px;
+  padding:12px 14px; background:var(--sunk); border:1px solid var(--line); border-radius:8px;
+}
+.field label{
   font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
   letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); white-space:nowrap;
 }
-.namerow input{
+.field input{
   flex:1 1 auto; min-width:0; border:0; background:transparent; color:var(--ink);
   font:inherit; font-weight:500; padding:2px 0;
 }
-.namerow input::placeholder{color:var(--ink-3); font-weight:400}
-.namerow input:focus{outline:none}
+.field input:focus{outline:none}
+.field input::placeholder{color:var(--ink-3); font-weight:400}
 
 /* ---------- progress ---------- */
 .progress{margin:22px 0 14px}
@@ -113,7 +122,7 @@ h1{
 .games{display:flex; flex-direction:column; gap:14px; margin:0; padding:0; list-style:none}
 .game{
   background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-  padding:12px 12px 12px; box-shadow:var(--shadow);
+  padding:12px; box-shadow:var(--shadow);
 }
 .game.done{border-color:var(--accent)}
 .gm-head{
@@ -175,15 +184,7 @@ h1{
 .tot:hover{background:var(--accent-soft); color:var(--ink)}
 .tot[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
 
-/* ---------- empty ---------- */
-.empty{
-  background:var(--surface); border:1px dashed var(--line-strong); border-radius:var(--radius);
-  padding:26px 20px; text-align:center; color:var(--ink-2);
-}
-.empty h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:19px; margin:0 0 6px; color:var(--ink)}
-.empty p{margin:0; font-size:14px}
-
-/* ---------- submit bar ---------- */
+/* ---------- buttons ---------- */
 .bar{
   position:sticky; bottom:0; z-index:5; margin-top:18px;
   padding-block:12px 18px; background:linear-gradient(to bottom, transparent, var(--bg) 32%);
@@ -199,17 +200,9 @@ h1{
 .btn.ghost:hover{background:var(--sunk)}
 
 /* ---------- slip ---------- */
-.slip{
-  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-  box-shadow:var(--shadow); margin-top:24px; overflow:hidden;
-}
-.slip-head{padding:16px 18px 14px; border-bottom:1px dashed var(--line-strong)}
-.slip-head h2{
-  font-family:"Oswald",sans-serif; font-weight:600; text-transform:uppercase;
-  font-size:22px; margin:0; letter-spacing:.02em;
-}
-.slip-head p{margin:4px 0 0; color:var(--ink-2); font-size:14px}
-.slip ol{list-style:none; margin:0; padding:4px 18px 14px}
+.slip-head{padding-bottom:14px; border-bottom:1px dashed var(--line-strong); margin-bottom:4px}
+.slip-head h2{margin-bottom:2px}
+.slip ol, ol.slip{list-style:none; margin:0; padding:0}
 .slip li{padding:11px 0; border-bottom:1px solid var(--line)}
 .slip li:last-child{border-bottom:0}
 .prow{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
@@ -225,30 +218,76 @@ h1{
   font-size:16px; color:var(--gold); white-space:nowrap;
 }
 .pick-line.sm{font-size:13px}
-.slip-actions{display:flex; flex-direction:column; gap:8px; padding:4px 18px 18px}
-.slip-actions .row{display:flex; gap:8px}
-.slip-actions .row .btn{flex:1}
-.note{font-size:13px; color:var(--ink-2); text-align:center; margin:2px 0 0}
+.stack{display:flex; flex-direction:column; gap:8px; margin-top:16px}
+.note{font-size:13.5px; color:var(--ink-2); text-align:center; margin:6px 0 0}
 .note.ok{color:var(--accent); font-weight:600}
+.note.bad{color:var(--loss); font-weight:600}
 
-/* ---------- editor ---------- */
-.editor{
-  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-  padding:16px; margin-top:18px; box-shadow:var(--shadow);
+/* ---------- roster ---------- */
+.roster{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
+.who{
+  display:flex; align-items:center; gap:7px; padding:7px 12px 7px 10px;
+  background:var(--sunk); border:1px solid var(--line); border-radius:99px;
+  font-size:13.5px; font-weight:500;
 }
-.editor h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; margin:0 0 6px}
-.editor p{margin:0 0 12px; font-size:14px; color:var(--ink-2)}
-.editor code{font-family:"IBM Plex Mono",monospace; font-size:12.5px; background:var(--sunk); padding:1px 5px; border-radius:4px}
-.editor textarea{
-  width:100%; min-height:130px; resize:vertical; font-family:"IBM Plex Mono",monospace; font-size:13px;
-  line-height:1.7; padding:12px; border-radius:8px; border:1px solid var(--line-strong);
-  background:var(--sunk); color:var(--ink);
+.who .dot{width:7px; height:7px; border-radius:99px; background:var(--accent); flex:none}
+.who.out{color:var(--ink-3)}
+.who.out .dot{background:var(--line-strong)}
+
+/* ---------- standings ---------- */
+.standings{display:flex; flex-direction:column; gap:10px; margin-top:4px}
+.stand{
+  display:grid; grid-template-columns:1fr auto auto auto; gap:10px; align-items:baseline;
+  padding:12px 14px; background:var(--sunk); border:1px solid var(--line); border-radius:8px;
 }
-.editor .row{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
-.editor .row .btn{flex:1 1 140px; font-size:14px; padding:11px 12px}
-.err{color:#B3261E; font-size:13px; margin-top:8px}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .err{color:#F2A9A2} }
-:root[data-theme="dark"] .err{color:#F2A9A2}
+.stand.lead{border-color:var(--accent); background:var(--accent-soft)}
+.stand .nm{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; letter-spacing:.02em; min-width:0; overflow:hidden; text-overflow:ellipsis}
+.stat{text-align:right}
+.stat .k{
+  display:block; font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3);
+}
+.stat .v{
+  font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:16px;
+  font-variant-numeric:tabular-nums; color:var(--ink);
+}
+.stat.big .v{font-size:19px; color:var(--accent)}
+.reclabel{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3);
+  letter-spacing:.06em; margin-top:6px;
+}
+
+/* ---------- reveal table ---------- */
+.tablewrap{overflow-x:auto; margin-top:4px; border:1px solid var(--line); border-radius:8px}
+table.reveal{border-collapse:collapse; width:100%; font-size:13.5px}
+table.reveal th, table.reveal td{padding:8px 10px; text-align:left; white-space:nowrap}
+table.reveal thead th{
+  position:sticky; top:0; background:var(--sunk); color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; border-bottom:1px solid var(--line);
+}
+table.reveal tr.gm th{
+  background:var(--sunk); font-family:"Oswald",sans-serif; text-transform:uppercase;
+  font-size:13px; letter-spacing:.03em; color:var(--ink); font-weight:500;
+  border-top:1px solid var(--line);
+}
+table.reveal tr.gm th .sc{font-family:"IBM Plex Mono",monospace; color:var(--ink-2); font-size:11px; letter-spacing:.05em}
+table.reveal td.lab{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+table.reveal td.pick{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink-2)}
+table.reveal td.pick.w{color:var(--win)}
+table.reveal td.pick.l{color:var(--loss)}
+table.reveal td.pick.p{color:var(--push)}
+table.reveal td.pick .mk{font-family:"IBM Plex Sans",sans-serif; margin-left:3px}
+
+.empty{
+  background:var(--surface); border:1px dashed var(--line-strong); border-radius:var(--radius);
+  padding:26px 20px; text-align:center; color:var(--ink-2); margin-top:18px;
+}
+.empty h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:19px; margin:0 0 6px; color:var(--ink)}
+.empty p{margin:0; font-size:14px}
 
 footer{
   padding:28px 0 36px; color:var(--ink-3); font-size:12px; text-align:center;
@@ -260,52 +299,84 @@ footer{
 <div class="wrap">
   <header class="topbar">
     <div>
-      <p class="eyebrow">NFL · Spread &amp; total</p>
+      <p class="eyebrow" id="eyebrow">NFL · Sunday slate</p>
       <h1>Sunday Slip</h1>
-      <p class="sub">Two calls per game: who covers the spread, and whether the two teams combined go over or under the total.</p>
+      <p class="sub" id="tagline">Two calls per game: who covers the spread, and whether the combined score goes over or under the total.</p>
     </div>
-    <button class="linkbtn" id="editToggle" type="button">Edit lines</button>
+    <div class="whoami hidden" id="whoami">Playing as<b id="whoamiName"></b></div>
   </header>
 
-  <p class="source" id="source"><span class="led"></span><span id="sourceText">Loading the board</span></p>
+  <p class="source" id="source"><span class="led"></span><span id="sourceText">Connecting</span></p>
 
-  <section class="editor hidden" id="editor" aria-label="Edit the lines by hand">
-    <h2>Set the lines by hand</h2>
-    <p>Only needed if the live board is wrong or missing a game. One per line: <code>Bills -1.5 vs Texans | 44.5 | Sun 1:00 PM</code> — matchup, then total, then kickoff. Put the spread on the favorite; the other side flips automatically.</p>
-    <label for="slateText" class="hidden">Games</label>
-    <textarea id="slateText" spellcheck="false"></textarea>
-    <div class="err hidden" id="editErr"></div>
-    <div class="row">
-      <button class="btn ghost" id="reloadBtn" type="button">Reload live lines</button>
-      <button class="btn ghost" id="applyBtn" type="button">Use these lines</button>
-      <button class="btn" id="shareBtn" type="button">Copy link to send</button>
+  <!-- who are you -->
+  <section class="panel hidden" id="gate">
+    <h2>Who's picking?</h2>
+    <p>Your name shows on the board so everyone knows who's in. It also claims your entry on this device — use the same one each week.</p>
+    <div class="field">
+      <label for="nameInput">Name</label>
+      <input id="nameInput" type="text" placeholder="First name is plenty" autocomplete="name" maxlength="40">
     </div>
-    <p class="note" id="editNote"></p>
+    <button class="btn" id="gateBtn" type="button">Start picking</button>
+    <p class="note" id="gateNote"></p>
   </section>
 
-  <main id="picker">
-    <div class="namerow">
-      <label for="who">Your name</label>
-      <input id="who" type="text" placeholder="e.g. Marcus" autocomplete="name" maxlength="40">
-    </div>
+  <!-- waiting for the board -->
+  <section class="empty hidden" id="waiting">
+    <h2 id="waitingTitle">Board opens Sunday</h2>
+    <p id="waitingText">The week's lines get pulled once, at 5am ET Sunday morning, and then they're locked. Check back after that.</p>
+  </section>
 
+  <!-- the board -->
+  <main class="hidden" id="picker">
     <div class="progress">
       <div class="progress-top"><span>Picks made</span><b id="count">0 of 0</b></div>
       <div class="track"><div class="fill" id="fill"></div></div>
     </div>
-
     <ul class="games" id="games"></ul>
-    <div class="empty hidden" id="empty">
-      <h2>Board's clear</h2>
-      <p id="emptyText">Every game has kicked off. Check back once next week's lines are posted.</p>
-    </div>
-
     <div class="bar">
-      <button class="btn" id="submitBtn" type="button" disabled>Pick every game first</button>
+      <button class="btn" id="reviewBtn" type="button" disabled>Pick every game first</button>
     </div>
   </main>
 
-  <section class="slip hidden" id="slip" aria-label="Your picks"></section>
+  <!-- review before locking -->
+  <section class="panel slip hidden" id="review">
+    <div class="slip-head">
+      <h2 id="reviewTitle">Check it over</h2>
+      <p>Once you lock in, these can't be changed — and only then do you get to see anyone else's.</p>
+    </div>
+    <ol id="reviewList"></ol>
+    <div class="stack">
+      <button class="btn" id="lockBtn" type="button">Lock in my picks</button>
+      <button class="btn ghost" id="backBtn" type="button">Keep editing</button>
+    </div>
+    <p class="note" id="lockNote"></p>
+  </section>
+
+  <!-- after locking -->
+  <section class="hidden" id="locked">
+    <section class="panel">
+      <h2 id="lockedTitle">You're locked in</h2>
+      <p id="lockedSub">Nothing left to do but watch.</p>
+      <div class="roster" id="roster"></div>
+    </section>
+
+    <section class="panel hidden" id="results">
+      <h2>How everyone did</h2>
+      <p id="resultsSub"></p>
+      <div class="standings" id="standings"></div>
+    </section>
+
+    <section class="panel hidden" id="compare">
+      <h2 id="compareTitle">Everyone's picks</h2>
+      <p id="compareSub"></p>
+      <div class="tablewrap"><table class="reveal" id="revealTable"></table></div>
+    </section>
+
+    <section class="panel hidden" id="mine">
+      <h2>Your picks</h2>
+      <ol class="slip" id="mineList"></ol>
+    </section>
+  </section>
 
   <footer>No money changes hands. Probably.</footer>
 </div>
@@ -315,197 +386,131 @@ footer{
   "use strict";
 
   /* ===== CONFIG =================================================== */
-  /* Where the "Email picks" button sends to. Blank it out to drop it. */
-  var SEND_TO = "tonycorrales34@gmail.com";
+  /* Your deployed Worker URL, no trailing slash. Until this is set the
+     page runs as a read-only preview and nothing can be locked in.
+     e.g. "https://sunday-slip.yourname.workers.dev"                   */
+  var API_BASE = "";
 
-  /* Live board: ESPN's public scoreboard. No key, no signup, CORS-open.
-     Spreads and totals are DraftKings' numbers as ESPN publishes them. */
-  var FEED = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
-
-  /* Shown instantly on load, and kept if the live fetch can't run —
-     which is the case inside a Claude artifact frame, where outbound
-     requests are blocked. Refreshed whenever this file is rebuilt. */
-  var SNAPSHOT = {"capturedAt":"2026-09-13T15:15:12Z","label":"Week 1","games":[{"id":"401872925","date":"2026-09-13T17:00Z","net":"FOX","total":50.5,"sides":[{"nick":"Buccaneers","city":"Tampa Bay","color":"#bd1c36","spread":3.5},{"nick":"Bengals","city":"Cincinnati","color":"#fb4f14","spread":-3.5}]},{"id":"401872923","date":"2026-09-13T17:00Z","net":"FOX","total":49.5,"sides":[{"nick":"Saints","city":"New Orleans","color":"#d3bc8d","spread":7.0},{"nick":"Lions","city":"Detroit","color":"#0076b6","spread":-7.0}]},{"id":"401872924","date":"2026-09-13T17:00Z","net":"CBS","total":38.5,"sides":[{"nick":"Jets","city":"New York","color":"#115740","spread":1.5},{"nick":"Titans","city":"Tennessee","color":"#4495d2","spread":-1.5}]},{"id":"401872659","date":"2026-09-13T17:00Z","net":"CBS","total":48.5,"sides":[{"nick":"Ravens","city":"Baltimore","color":"#29126f","spread":-3.5},{"nick":"Colts","city":"Indianapolis","color":"#003b75","spread":3.5}]},{"id":"401872658","date":"2026-09-13T17:00Z","net":"FOX","total":40.5,"sides":[{"nick":"Falcons","city":"Atlanta","color":"#a71930","spread":6.5},{"nick":"Steelers","city":"Pittsburgh","color":"#000000","spread":-6.5}]},{"id":"401872661","date":"2026-09-13T17:00Z","net":"FOX","total":47.5,"sides":[{"nick":"Bears","city":"Chicago","color":"#0b1c3a","spread":-3.0},{"nick":"Panthers","city":"Carolina","color":"#0085ca","spread":3.0}]},{"id":"401872922","date":"2026-09-13T17:00Z","net":"CBS","total":40.5,"sides":[{"nick":"Browns","city":"Cleveland","color":"#472a08","spread":8.5},{"nick":"Jaguars","city":"Jacksonville","color":"#007487","spread":-8.5}]},{"id":"401872660","date":"2026-09-13T17:00Z","net":"CBS","total":44.5,"sides":[{"nick":"Bills","city":"Buffalo","color":"#00338d","spread":-1.5},{"nick":"Texans","city":"Houston","color":"#021018","spread":1.5}]},{"id":"401872928","date":"2026-09-13T20:25Z","net":"FOX","total":40.5,"sides":[{"nick":"Dolphins","city":"Miami","color":"#008e97","spread":3.0},{"nick":"Raiders","city":"Las Vegas","color":"#000000","spread":-3.0}]},{"id":"401872927","date":"2026-09-13T20:25Z","net":"CBS","total":46.5,"sides":[{"nick":"Packers","city":"Green Bay","color":"#204e32","spread":1.5},{"nick":"Vikings","city":"Minnesota","color":"#4f2683","spread":-1.5}]},{"id":"401872929","date":"2026-09-13T20:25Z","net":"FOX","total":44.5,"sides":[{"nick":"Commanders","city":"Washington","color":"#5a1414","spread":6.0},{"nick":"Eagles","city":"Philadelphia","color":"#06424d","spread":-6.0}]},{"id":"401872926","date":"2026-09-13T20:25Z","net":"CBS","total":47.5,"sides":[{"nick":"Cardinals","city":"Arizona","color":"#a40227","spread":9.5},{"nick":"Chargers","city":"Los Angeles","color":"#0080c6","spread":-9.5}]},{"id":"401872930","date":"2026-09-14T00:20Z","net":"NBC","total":47.5,"sides":[{"nick":"Cowboys","city":"Dallas","color":"#002a5c","spread":-3.0},{"nick":"Giants","city":"New York","color":"#003c7f","spread":3.0}]},{"id":"401872931","date":"2026-09-15T00:15Z","net":"ESPN","total":43.5,"sides":[{"nick":"Broncos","city":"Denver","color":"#0a2343","spread":2.5},{"nick":"Chiefs","city":"Kansas City","color":"#e31837","spread":-2.5}]}]};
+  /* Board shown in preview mode only, so the page is never a blank
+     shell. The real board always comes from the Worker.              */
+  var SNAPSHOT = {"season":2026,"week":1,"capturedAt":"2026-09-13T15:41:43Z","label":"Week 1","games":[{"id":"401872925","date":"2026-09-13T17:00Z","net":"FOX","total":50.5,"sides":[{"abbr":"TB","nick":"Buccaneers","city":"Tampa Bay","color":"#bd1c36","spread":3.5},{"abbr":"CIN","nick":"Bengals","city":"Cincinnati","color":"#fb4f14","spread":-3.5}]},{"id":"401872923","date":"2026-09-13T17:00Z","net":"FOX","total":49.5,"sides":[{"abbr":"NO","nick":"Saints","city":"New Orleans","color":"#d3bc8d","spread":7.0},{"abbr":"DET","nick":"Lions","city":"Detroit","color":"#0076b6","spread":-7.0}]},{"id":"401872924","date":"2026-09-13T17:00Z","net":"CBS","total":38.5,"sides":[{"abbr":"NYJ","nick":"Jets","city":"New York","color":"#115740","spread":1.5},{"abbr":"TEN","nick":"Titans","city":"Tennessee","color":"#4495d2","spread":-1.5}]},{"id":"401872659","date":"2026-09-13T17:00Z","net":"CBS","total":48.5,"sides":[{"abbr":"BAL","nick":"Ravens","city":"Baltimore","color":"#29126f","spread":-3.5},{"abbr":"IND","nick":"Colts","city":"Indianapolis","color":"#003b75","spread":3.5}]},{"id":"401872658","date":"2026-09-13T17:00Z","net":"FOX","total":40.5,"sides":[{"abbr":"ATL","nick":"Falcons","city":"Atlanta","color":"#a71930","spread":6.5},{"abbr":"PIT","nick":"Steelers","city":"Pittsburgh","color":"#000000","spread":-6.5}]},{"id":"401872661","date":"2026-09-13T17:00Z","net":"FOX","total":47.5,"sides":[{"abbr":"CHI","nick":"Bears","city":"Chicago","color":"#0b1c3a","spread":-3.0},{"abbr":"CAR","nick":"Panthers","city":"Carolina","color":"#0085ca","spread":3.0}]},{"id":"401872922","date":"2026-09-13T17:00Z","net":"CBS","total":40.5,"sides":[{"abbr":"CLE","nick":"Browns","city":"Cleveland","color":"#472a08","spread":8.5},{"abbr":"JAX","nick":"Jaguars","city":"Jacksonville","color":"#007487","spread":-8.5}]},{"id":"401872660","date":"2026-09-13T17:00Z","net":"CBS","total":44.5,"sides":[{"abbr":"BUF","nick":"Bills","city":"Buffalo","color":"#00338d","spread":-1.5},{"abbr":"HOU","nick":"Texans","city":"Houston","color":"#021018","spread":1.5}]},{"id":"401872928","date":"2026-09-13T20:25Z","net":"FOX","total":40.5,"sides":[{"abbr":"MIA","nick":"Dolphins","city":"Miami","color":"#008e97","spread":3.0},{"abbr":"LV","nick":"Raiders","city":"Las Vegas","color":"#000000","spread":-3.0}]},{"id":"401872927","date":"2026-09-13T20:25Z","net":"CBS","total":46.5,"sides":[{"abbr":"GB","nick":"Packers","city":"Green Bay","color":"#204e32","spread":1.5},{"abbr":"MIN","nick":"Vikings","city":"Minnesota","color":"#4f2683","spread":-1.5}]},{"id":"401872929","date":"2026-09-13T20:25Z","net":"FOX","total":44.5,"sides":[{"abbr":"WSH","nick":"Commanders","city":"Washington","color":"#5a1414","spread":6.0},{"abbr":"PHI","nick":"Eagles","city":"Philadelphia","color":"#06424d","spread":-6.0}]},{"id":"401872926","date":"2026-09-13T20:25Z","net":"CBS","total":47.5,"sides":[{"abbr":"ARI","nick":"Cardinals","city":"Arizona","color":"#a40227","spread":9.5},{"abbr":"LAC","nick":"Chargers","city":"Los Angeles","color":"#0080c6","spread":-9.5}]},{"id":"401872930","date":"2026-09-14T00:20Z","net":"NBC","total":47.5,"sides":[{"abbr":"DAL","nick":"Cowboys","city":"Dallas","color":"#002a5c","spread":-3.0},{"abbr":"NYG","nick":"Giants","city":"New York","color":"#003c7f","spread":3.0}]}]};
   /* ================================================================ */
 
   var $ = function(id){ return document.getElementById(id); };
-  var games = [], picks = {}, live = false;
+  var show = function(id, on){ $(id).classList.toggle("hidden", !on); };
+
+  var state = {
+    board: null, you: null, entries: [], roster: [],
+    picks: {}, scores: null, preview: !API_BASE, name: "", secret: ""
+  };
+
+  /* ---------- identity, kept on this device ---------- */
+  function store(k, v){
+    try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }
+    catch(e){ return null; }
+  }
+  function deviceSecret(){
+    var s = store("slip.secret");
+    if (!s){
+      s = "";
+      var chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+      var buf = new Uint8Array(24);
+      (window.crypto || {}).getRandomValues ? window.crypto.getRandomValues(buf) : buf.forEach(function(_, i){ buf[i] = Math.floor(Math.random() * 256); });
+      for (var i = 0; i < buf.length; i++) s += chars[buf[i] % chars.length];
+      store("slip.secret", s);
+    }
+    return s;
+  }
 
   /* ---------- formatting ---------- */
-  function fmtSpread(n){
-    if (!n) return "PK";
-    return (n < 0 ? "-" : "+") + Math.abs(n);
-  }
+  function fmtSpread(n){ return !n ? "PK" : (n < 0 ? "-" : "+") + Math.abs(n); }
   function fmtKick(g){
-    if (g.when) return g.when;
-    if (!g.date) return "Kickoff TBD";
     var d = new Date(g.date);
     if (isNaN(d)) return "Kickoff TBD";
     var s = d.toLocaleString(undefined, { weekday:"short", hour:"numeric", minute:"2-digit" });
     return g.net ? s + " · " + g.net : s;
   }
-  function upcoming(g){
-    if (!g.date) return true;
-    var d = new Date(g.date);
-    return isNaN(d) ? true : d.getTime() > Date.now();
+  function pct(w, l){
+    var n = w + l;
+    return n ? Math.round((w / n) * 100) + "%" : "—";
   }
 
-  /* ---------- the live feed ---------- */
-  function normalize(feed){
-    var out = [];
-    var events = (feed && feed.events) || [];
-    for (var i = 0; i < events.length; i++){
-      var e = events[i];
-      var c = (e.competitions || [])[0];
-      if (!c) continue;
-      var state = ((c.status || {}).type || {}).state;
-      if (state && state !== "pre") continue;
-
-      var odds = (c.odds || [])[0];
-      if (!odds || odds.spread === undefined || odds.spread === null) continue;
-      var favAbbr = String(odds.details || "").split(" ")[0];
-      var mag = Math.abs(Number(odds.spread));
-
-      var byHome = {};
-      for (var j = 0; j < (c.competitors || []).length; j++){
-        var t = c.competitors[j], tm = t.team || {};
-        byHome[t.homeAway] = {
-          nick: tm.shortDisplayName || tm.name || tm.displayName || "",
-          city: tm.location || "",
-          color: tm.color ? "#" + String(tm.color).replace(/^#/, "") : "",
-          spread: mag ? (tm.abbreviation === favAbbr ? -mag : mag) : 0
-        };
-      }
-      if (!byHome.home || !byHome.away) continue;
-
-      var bc = (c.broadcasts || [])[0];
-      out.push({
-        id: String(e.id),
-        date: e.date,
-        net: (bc && bc.names && bc.names[0]) || "",
-        total: (odds.overUnder === undefined || odds.overUnder === null) ? null : Number(odds.overUnder),
-        sides: [byHome.away, byHome.home]
+  /* ---------- api ---------- */
+  function api(path, opts){
+    if (state.preview) return Promise.reject(new Error("preview"));
+    var o = opts || {};
+    return fetch(API_BASE + path, {
+      method: o.method || "GET",
+      headers: o.body ? { "Content-Type": "application/json" } : undefined,
+      body: o.body ? JSON.stringify(o.body) : undefined,
+      cache: "no-store"
+    }).then(function(r){
+      return r.json().then(function(j){
+        if (!r.ok) throw new Error(j && j.error ? j.error : "HTTP " + r.status);
+        return j;
       });
-    }
-    out.sort(function(a, b){ return new Date(a.date) - new Date(b.date); });
-    return { label: "Week " + (((feed || {}).week || {}).number || ""), games: out };
+    });
   }
 
-  function loadLive(onDone){
-    var done = false;
-    var finish = function(ok, err){ if (!done){ done = true; onDone(ok, err); } };
-    var timer = setTimeout(function(){ finish(false, "timeout"); }, 9000);
-
-    try {
-      fetch(FEED, { cache: "no-store" })
-        .then(function(r){
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.json();
-        })
-        .then(function(feed){
-          clearTimeout(timer);
-          var norm = normalize(feed);
-          if (!norm.games.length) return finish(false, "no games");
-          setBoard(norm.games, norm.label + " · live lines");
-          live = true;
-          finish(true);
-        })
-        .catch(function(e){
-          clearTimeout(timer);
-          finish(false, String((e && e.message) || e));
-        });
-    } catch(e){
-      clearTimeout(timer);
-      finish(false, "blocked");
-    }
+  function qs(){
+    var p = "?name=" + encodeURIComponent(state.name || "") + "&secret=" + encodeURIComponent(state.secret);
+    if (state.board) p += "&season=" + state.board.season + "&week=" + state.board.week;
+    return p;
   }
 
-  /* ---------- hand-entered lines ---------- */
-  function parseSide(raw){
-    var s = raw.trim().replace(/\s+/g, " "), spread = null;
-    var m = s.match(/^(.+?)\s+(pk|ev|even|[+-]?\d+(?:\.\d+)?)$/i);
-    if (m){
-      s = m[1].trim();
-      var v = m[2].toLowerCase();
-      spread = (v === "pk" || v === "ev" || v === "even") ? 0 : parseFloat(v);
-    }
-    return { name: s, spread: spread };
-  }
+  /* ---------- grading ---------- */
+  /* Spread: your team's margin plus the number it laid or got. Total:
+     the two scores added up against the posted number. A dead-even
+     result is a push — it counts for nobody and is left out of the
+     percentages rather than counted as a loss. */
+  function grade(entry){
+    var out = { spread:{w:0,l:0,p:0}, total:{w:0,l:0,p:0}, per:{}, graded:0 };
+    if (!state.scores || !state.board) return out;
 
-  function parseSlate(text){
-    var out = [], errs = [], lines = String(text).split("\n");
-    for (var i = 0; i < lines.length; i++){
-      var line = lines[i].trim();
-      if (!line) continue;
-      var cols = line.split("|").map(function(s){ return s.trim(); });
-      var parts = cols[0].split(/\s+(?:vs\.?|@|at)\s+/i);
-      if (parts.length !== 2){ errs.push("Line " + (i + 1) + ': needs two teams separated by "vs".'); continue; }
+    state.board.games.forEach(function(g){
+      var sc = state.scores[g.id];
+      if (!sc || !sc.completed || sc.away === null || sc.home === null) return;
+      var pick = entry.picks[g.id];
+      if (!pick) return;
+      out.graded++;
+      out.per[g.id] = {};
 
-      var total = null, when = "";
-      for (var k = 1; k < cols.length; k++){
-        if (!cols[k]) continue;
-        if (total === null && /^\d+(\.\d+)?$/.test(cols[k])) total = parseFloat(cols[k]);
-        else if (!when) when = cols[k];
+      var mine = pick.side === 0 ? sc.away : sc.home;
+      var theirs = pick.side === 0 ? sc.home : sc.away;
+      var margin = mine - theirs + g.sides[pick.side].spread;
+      var r = margin > 0 ? "w" : margin < 0 ? "l" : "p";
+      out.spread[r]++;
+      out.per[g.id].spread = r;
+
+      if (g.total !== null && g.total !== undefined && pick.total){
+        var comb = sc.away + sc.home;
+        var tr = comb > g.total ? (pick.total === "over" ? "w" : "l")
+               : comb < g.total ? (pick.total === "under" ? "w" : "l")
+               : "p";
+        out.total[tr]++;
+        out.per[g.id].total = tr;
       }
+    });
 
-      var a = parseSide(parts[0]), b = parseSide(parts[1]);
-      if (!a.name || !b.name){ errs.push("Line " + (i + 1) + ": missing a team name."); continue; }
-      if (a.spread === null && b.spread === null){ a.spread = 0; b.spread = 0; }
-      else if (a.spread === null) a.spread = -b.spread;
-      else if (b.spread === null) b.spread = -a.spread;
-
-      out.push({
-        id: "m" + i,
-        date: null,
-        when: when,
-        net: "",
-        total: total,
-        sides: [
-          { nick: a.name, city: "", color: "", spread: a.spread },
-          { nick: b.name, city: "", color: "", spread: b.spread }
-        ]
-      });
-    }
-    return { games: out, errors: errs };
+    out.combined = {
+      w: out.spread.w + out.total.w,
+      l: out.spread.l + out.total.l,
+      p: out.spread.p + out.total.p
+    };
+    return out;
   }
 
-  function slateToText(list){
-    return list.map(function(g){
-      var fav = g.sides[0].spread <= g.sides[1].spread ? 0 : 1;
-      var line = g.sides[0].nick + (fav === 0 ? " " + fmtSpread(g.sides[0].spread) : "") +
-                 " vs " + g.sides[1].nick + (fav === 1 ? " " + fmtSpread(g.sides[1].spread) : "");
-      var cols = [line];
-      if (g.total !== null && g.total !== undefined) cols.push(String(g.total));
-      cols.push(fmtKick(g));
-      return cols.join(" | ");
-    }).join("\n");
-  }
-
-  /* ---------- board state ---------- */
-  function setBoard(list, sourceLabel, tone){
-    games = list.filter(upcoming);
-    picks = {};
-    render();
-    $("slateText").value = slateToText(games);
-    $("sourceText").textContent = sourceLabel;
-    $("source").className = "source " + (tone || (live ? "live" : "stale"));
-  }
-
+  /* ---------- board ---------- */
   function needed(g){ return 1 + (g.total === null || g.total === undefined ? 0 : 1); }
   function made(g){
-    var p = picks[g.id] || {};
+    var p = state.picks[g.id] || {};
     return (p.side === undefined ? 0 : 1) + (p.total === undefined ? 0 : 1);
   }
 
-  /* ---------- rendering ---------- */
-  function render(){
+  function renderBoard(){
     var list = $("games");
     list.textContent = "";
-
-    $("empty").classList.toggle("hidden", games.length > 0);
-    list.classList.toggle("hidden", games.length === 0);
-
-    games.forEach(function(g){
+    state.board.games.forEach(function(g){
       var li = document.createElement("li");
       li.className = "game";
       li.id = "card-" + g.id;
@@ -517,8 +522,7 @@ footer{
       when.textContent = fmtKick(g);
       var chip = document.createElement("span");
       chip.className = "chip";
-      head.appendChild(when);
-      head.appendChild(chip);
+      head.appendChild(when); head.appendChild(chip);
 
       var row = document.createElement("div");
       row.className = "matchup";
@@ -526,37 +530,32 @@ footer{
         if (idx === 1){
           var at = document.createElement("span");
           at.className = "at";
-          at.textContent = g.date ? "at" : "vs";
+          at.textContent = "at";
           row.appendChild(at);
         }
         var b = document.createElement("button");
-        b.type = "button";
-        b.className = "side";
+        b.type = "button"; b.className = "side";
         b.id = "side-" + g.id + "-" + idx;
         b.setAttribute("aria-pressed", "false");
         if (side.color) b.style.setProperty("--team", side.color);
 
         var city = document.createElement("span");
-        city.className = "city";
-        city.textContent = side.city || " ";
+        city.className = "city"; city.textContent = side.city || " ";
         var team = document.createElement("span");
-        team.className = "team";
-        team.textContent = side.nick;
+        team.className = "team"; team.textContent = side.nick;
         var ln = document.createElement("span");
-        ln.className = "line";
-        ln.textContent = fmtSpread(side.spread);
-
+        ln.className = "line"; ln.textContent = fmtSpread(side.spread);
         b.appendChild(city); b.appendChild(team); b.appendChild(ln);
+
         b.addEventListener("click", function(){
-          var p = picks[g.id] || (picks[g.id] = {});
+          var p = state.picks[g.id] || (state.picks[g.id] = {});
           p.side = (p.side === idx) ? undefined : idx;
           refresh();
         });
         row.appendChild(b);
       });
 
-      li.appendChild(head);
-      li.appendChild(row);
+      li.appendChild(head); li.appendChild(row);
 
       if (g.total !== null && g.total !== undefined){
         var tr = document.createElement("div");
@@ -571,23 +570,20 @@ footer{
         btns.className = "tbtns";
         ["over", "under"].forEach(function(dir){
           var t = document.createElement("button");
-          t.type = "button";
-          t.className = "tot";
+          t.type = "button"; t.className = "tot";
           t.id = "tot-" + g.id + "-" + dir;
           t.setAttribute("aria-pressed", "false");
           t.textContent = (dir === "over" ? "Over " : "Under ") + g.total;
           t.addEventListener("click", function(){
-            var p = picks[g.id] || (picks[g.id] = {});
+            var p = state.picks[g.id] || (state.picks[g.id] = {});
             p.total = (p.total === dir) ? undefined : dir;
             refresh();
           });
           btns.appendChild(t);
         });
-        tr.appendChild(lab);
-        tr.appendChild(btns);
+        tr.appendChild(lab); tr.appendChild(btns);
         li.appendChild(tr);
       }
-
       list.appendChild(li);
     });
     refresh();
@@ -595,16 +591,14 @@ footer{
 
   function refresh(){
     var done = 0, want = 0;
-    games.forEach(function(g){
-      var p = picks[g.id] || {};
+    state.board.games.forEach(function(g){
+      var p = state.picks[g.id] || {};
       var n = needed(g), m = made(g);
       want += n; done += m;
-
       var card = $("card-" + g.id);
       if (!card) return;
       card.classList.toggle("done", m === n);
       card.querySelector(".chip").textContent = (m === n) ? "Locked in" : m + " of " + n;
-
       g.sides.forEach(function(_, i){
         var b = $("side-" + g.id + "-" + i);
         if (b) b.setAttribute("aria-pressed", p.side === i ? "true" : "false");
@@ -614,264 +608,438 @@ footer{
         if (t) t.setAttribute("aria-pressed", p.total === dir ? "true" : "false");
       });
     });
-
     $("count").textContent = done + " of " + want;
     $("fill").style.width = (want ? (done / want) * 100 : 0) + "%";
-
-    var btn = $("submitBtn");
+    var btn = $("reviewBtn");
     var all = want > 0 && done === want;
-    btn.disabled = !all;
-    btn.textContent = !games.length ? "Nothing to pick"
-      : all ? "Review and send"
+    btn.disabled = !all || state.preview;
+    btn.textContent = state.preview ? "Preview only — not connected"
+      : all ? "Review and lock in"
       : (want - done) + " left to pick";
   }
 
-  /* ---------- summary ---------- */
-  function chosen(){
-    return games.map(function(g){
+  /* ---------- review ---------- */
+  function pickRows(picks){
+    return state.board.games.map(function(g){
       var p = picks[g.id] || {};
-      return {
-        team: g.sides[p.side],
-        opp: g.sides[1 - p.side],
-        total: g.total,
-        dir: p.total
-      };
+      return { g: g, team: g.sides[p.side], opp: g.sides[1 - p.side], dir: p.total };
     });
   }
 
-  function pickText(){
-    var name = $("who").value.trim();
-    var lines = chosen().map(function(p){
-      var s = "- " + p.team.nick + " " + fmtSpread(p.team.spread) + " over " + p.opp.nick;
-      if (p.dir) s += "  |  " + (p.dir === "over" ? "Over " : "Under ") + p.total;
-      return s;
-    });
-    var stamp = new Date().toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
-    return (name ? name + "'s picks" : "My picks") + " — " + stamp + "\n" + lines.join("\n");
-  }
-
-  function showSlip(){
-    var name = $("who").value.trim();
-    var slip = $("slip");
-    $("picker").classList.add("hidden");
-    $("editor").classList.add("hidden");
-    $("editToggle").textContent = "Edit lines";
-    slip.classList.remove("hidden");
-    slip.textContent = "";
-
-    var head = document.createElement("div");
-    head.className = "slip-head";
-    var h2 = document.createElement("h2");
-    h2.textContent = name ? name + "'s slip" : "Your slip";
-    var p = document.createElement("p");
-    p.textContent = games.length + (games.length === 1 ? " game" : " games") + ", spread and total. Send it over and you're done.";
-    head.appendChild(h2); head.appendChild(p);
-
-    var ol = document.createElement("ol");
-    chosen().forEach(function(pick){
+  function renderReview(){
+    var ol = $("reviewList");
+    ol.textContent = "";
+    pickRows(state.picks).forEach(function(r){
       var li = document.createElement("li");
-
       var r1 = document.createElement("div");
       r1.className = "prow";
       var left = document.createElement("span");
       left.className = "pick-team";
-      left.textContent = pick.team.nick;
+      left.textContent = r.team.nick;
       var opp = document.createElement("span");
       opp.className = "pick-opp";
-      opp.textContent = "over " + pick.opp.nick;
+      opp.textContent = "over " + r.opp.nick;
       left.appendChild(opp);
       var right = document.createElement("span");
       right.className = "pick-line";
-      right.textContent = fmtSpread(pick.team.spread);
+      right.textContent = fmtSpread(r.team.spread);
       r1.appendChild(left); r1.appendChild(right);
       li.appendChild(r1);
-
-      if (pick.dir){
+      if (r.dir){
         var r2 = document.createElement("div");
         r2.className = "prow";
         var tag = document.createElement("span");
-        tag.className = "pick-tag";
-        tag.textContent = "Total";
+        tag.className = "pick-tag"; tag.textContent = "Total";
         var val = document.createElement("span");
         val.className = "pick-line sm";
-        val.textContent = (pick.dir === "over" ? "Over " : "Under ") + pick.total;
+        val.textContent = (r.dir === "over" ? "Over " : "Under ") + r.g.total;
         r2.appendChild(tag); r2.appendChild(val);
         li.appendChild(r2);
       }
-
       ol.appendChild(li);
     });
+  }
 
-    var acts = document.createElement("div");
-    acts.className = "slip-actions";
+  /* ---------- locked view ---------- */
+  function renderRoster(){
+    var box = $("roster");
+    box.textContent = "";
+    state.roster.forEach(function(p){
+      var el = document.createElement("span");
+      el.className = "who";
+      var d = document.createElement("span");
+      d.className = "dot";
+      var t = document.createElement("span");
+      var when = new Date(p.lockedAt);
+      t.textContent = p.name + (isNaN(when) ? "" : " · locked " + when.toLocaleString(undefined, { weekday:"short", hour:"numeric", minute:"2-digit" }));
+      el.appendChild(d); el.appendChild(t);
+      box.appendChild(el);
+    });
+  }
 
-    var copy = document.createElement("button");
-    copy.type = "button"; copy.className = "btn";
-    copy.textContent = "Copy picks";
+  function renderMine(){
+    var ol = $("mineList");
+    ol.textContent = "";
+    pickRows(state.you.picks).forEach(function(r){
+      var li = document.createElement("li");
+      var r1 = document.createElement("div");
+      r1.className = "prow";
+      var left = document.createElement("span");
+      left.className = "pick-team";
+      left.textContent = r.team.nick;
+      var opp = document.createElement("span");
+      opp.className = "pick-opp";
+      opp.textContent = "over " + r.opp.nick;
+      left.appendChild(opp);
+      var right = document.createElement("span");
+      right.className = "pick-line";
+      right.textContent = fmtSpread(r.team.spread);
+      r1.appendChild(left); r1.appendChild(right);
+      li.appendChild(r1);
+      if (r.dir){
+        var r2 = document.createElement("div");
+        r2.className = "prow";
+        var tag = document.createElement("span");
+        tag.className = "pick-tag"; tag.textContent = "Total";
+        var val = document.createElement("span");
+        val.className = "pick-line sm";
+        val.textContent = (r.dir === "over" ? "Over " : "Under ") + r.g.total;
+        r2.appendChild(tag); r2.appendChild(val);
+        li.appendChild(r2);
+      }
+      ol.appendChild(li);
+    });
+    show("mine", true);
+  }
 
-    var row = document.createElement("div");
-    row.className = "row";
-    var sms = document.createElement("a");
-    sms.className = "btn ghost"; sms.style.textAlign = "center"; sms.style.textDecoration = "none";
-    sms.href = "sms:?&body=" + encodeURIComponent(pickText());
-    sms.textContent = "Text picks";
-    row.appendChild(sms);
-    if (SEND_TO){
-      var mail = document.createElement("a");
-      mail.className = "btn ghost"; mail.style.textAlign = "center"; mail.style.textDecoration = "none";
-      mail.href = "mailto:" + SEND_TO +
-                  "?subject=" + encodeURIComponent((name ? name + "'s " : "") + "NFL picks") +
-                  "&body=" + encodeURIComponent(pickText());
-      mail.textContent = "Email picks";
-      row.appendChild(mail);
-    }
+  function renderStandings(grades){
+    var box = $("standings");
+    box.textContent = "";
+    var ranked = state.entries.slice().sort(function(a, b){
+      var ga = grades[a.name].combined, gb = grades[b.name].combined;
+      var pa = ga.w + ga.l ? ga.w / (ga.w + ga.l) : -1;
+      var pb = gb.w + gb.l ? gb.w / (gb.w + gb.l) : -1;
+      return pb - pa;
+    });
 
-    var back = document.createElement("button");
-    back.type = "button"; back.className = "btn ghost";
-    back.textContent = "Change a pick";
+    ranked.forEach(function(e, i){
+      var gr = grades[e.name];
+      var row = document.createElement("div");
+      row.className = "stand" + (i === 0 && gr.combined.w + gr.combined.l ? " lead" : "");
 
-    var note = document.createElement("p");
-    note.className = "note";
-    note.textContent = "Copy drops them on your clipboard — paste into a text.";
+      var nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = e.name;
 
-    acts.appendChild(copy); acts.appendChild(row); acts.appendChild(back); acts.appendChild(note);
-    slip.appendChild(head); slip.appendChild(ol); slip.appendChild(acts);
+      function stat(label, w, l, big){
+        var s = document.createElement("span");
+        s.className = "stat" + (big ? " big" : "");
+        var k = document.createElement("span");
+        k.className = "k"; k.textContent = label;
+        var v = document.createElement("span");
+        v.className = "v"; v.textContent = pct(w, l);
+        s.appendChild(k); s.appendChild(v);
+        return s;
+      }
+      row.appendChild(nm);
+      row.appendChild(stat("Spreads", gr.spread.w, gr.spread.l));
+      row.appendChild(stat("Totals", gr.total.w, gr.total.l));
+      row.appendChild(stat("Overall", gr.combined.w, gr.combined.l, true));
 
-    copy.addEventListener("click", function(){
-      copyToClipboard(pickText(), function(ok){
-        note.textContent = ok ? "Copied. Paste it into a text and hit send."
-                              : "Couldn't copy — select the picks above and copy them by hand.";
-        note.className = ok ? "note ok" : "note";
+      var rec = document.createElement("div");
+      rec.className = "reclabel";
+      rec.style.gridColumn = "1 / -1";
+      rec.textContent = gr.combined.w + "-" + gr.combined.l +
+        (gr.combined.p ? "-" + gr.combined.p + " (pushes don't count either way)" : "") +
+        " · spreads " + gr.spread.w + "-" + gr.spread.l +
+        " · totals " + gr.total.w + "-" + gr.total.l;
+      row.appendChild(rec);
+      box.appendChild(row);
+    });
+  }
+
+  function renderCompare(grades){
+    var tbl = $("revealTable");
+    tbl.textContent = "";
+    var people = state.entries;
+
+    var thead = document.createElement("thead");
+    var hr = document.createElement("tr");
+    var th0 = document.createElement("th"); th0.textContent = "Game"; hr.appendChild(th0);
+    people.forEach(function(p){
+      var th = document.createElement("th"); th.textContent = p.name; hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    tbl.appendChild(thead);
+
+    var tb = document.createElement("tbody");
+    state.board.games.forEach(function(g){
+      var sc = state.scores && state.scores[g.id];
+
+      var gr = document.createElement("tr");
+      gr.className = "gm";
+      var gh = document.createElement("th");
+      gh.colSpan = people.length + 1;
+      gh.textContent = g.sides[0].nick + " at " + g.sides[1].nick + " ";
+      var sp = document.createElement("span");
+      sp.className = "sc";
+      sp.textContent = sc && sc.completed
+        ? "· Final " + sc.away + "–" + sc.home
+        : "· " + fmtKick(g);
+      gh.appendChild(sp);
+      gr.appendChild(gh);
+      tb.appendChild(gr);
+
+      // spread row
+      var r1 = document.createElement("tr");
+      var c0 = document.createElement("td"); c0.className = "lab"; c0.textContent = "Spread";
+      r1.appendChild(c0);
+      people.forEach(function(p){
+        var pk = p.picks[g.id] || {};
+        var td = document.createElement("td");
+        td.className = "pick";
+        var res = (grades[p.name].per[g.id] || {}).spread;
+        if (res) td.classList.add(res);
+        var side = g.sides[pk.side];
+        td.textContent = side ? side.abbr || side.nick : "—";
+        if (side) td.textContent += " " + fmtSpread(side.spread);
+        if (res){
+          var mk = document.createElement("span");
+          mk.className = "mk";
+          mk.textContent = res === "w" ? "✓" : res === "l" ? "✗" : "–";
+          td.appendChild(mk);
+        }
+        r1.appendChild(td);
       });
+      tb.appendChild(r1);
+
+      if (g.total !== null && g.total !== undefined){
+        var r2 = document.createElement("tr");
+        var d0 = document.createElement("td"); d0.className = "lab"; d0.textContent = "Total " + g.total;
+        r2.appendChild(d0);
+        people.forEach(function(p){
+          var pk = p.picks[g.id] || {};
+          var td = document.createElement("td");
+          td.className = "pick";
+          var res = (grades[p.name].per[g.id] || {}).total;
+          if (res) td.classList.add(res);
+          td.textContent = pk.total ? (pk.total === "over" ? "Over" : "Under") : "—";
+          if (res){
+            var mk = document.createElement("span");
+            mk.className = "mk";
+            mk.textContent = res === "w" ? "✓" : res === "l" ? "✗" : "–";
+            td.appendChild(mk);
+          }
+          r2.appendChild(td);
+        });
+        tb.appendChild(r2);
+      }
     });
-    back.addEventListener("click", function(){
-      slip.classList.add("hidden");
-      $("picker").classList.remove("hidden");
-      window.scrollTo(0, 0);
-    });
-    window.scrollTo(0, 0);
+    tbl.appendChild(tb);
   }
 
-  function copyToClipboard(text, done){
-    if (navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(legacyCopy(text)); });
+  function renderLocked(){
+    show("gate", false); show("picker", false); show("review", false);
+    show("waiting", false); show("locked", true);
+    $("whoamiName").textContent = state.you.name;
+    show("whoami", true);
+
+    var lockedWhen = new Date(state.you.lockedAt);
+    $("lockedTitle").textContent = "You're locked in";
+    $("lockedSub").textContent = isNaN(lockedWhen)
+      ? "Your picks are in."
+      : "Your picks were sealed " + lockedWhen.toLocaleString(undefined, { weekday:"long", hour:"numeric", minute:"2-digit" }) + ".";
+    renderRoster();
+    renderMine();
+
+    var others = state.entries.filter(function(e){ return e.name !== state.you.name; });
+    var grades = {};
+    state.entries.forEach(function(e){ grades[e.name] = grade(e); });
+
+    var anyGraded = state.entries.some(function(e){ return grades[e.name].graded > 0; });
+    var finals = 0;
+    if (state.scores) state.board.games.forEach(function(g){
+      if (state.scores[g.id] && state.scores[g.id].completed) finals++;
+    });
+
+    if (anyGraded){
+      show("results", true);
+      $("resultsSub").textContent = finals === state.board.games.length
+        ? "All " + finals + " games final. Pushes are left out of the percentages."
+        : finals + " of " + state.board.games.length + " games final so far — percentages cover only those.";
+      renderStandings(grades);
     } else {
-      done(legacyCopy(text));
+      show("results", false);
     }
-  }
-  function legacyCopy(text){
-    try{
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      var ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
-    } catch(e){ return false; }
-  }
 
-  /* ---------- boot ---------- */
-  function capturedLabel(){
-    var d = new Date(SNAPSHOT.capturedAt);
-    var when = isNaN(d) ? SNAPSHOT.capturedAt
-                        : d.toLocaleDateString(undefined, { month:"short", day:"numeric" });
-    return SNAPSHOT.label + " · saved lines from " + when;
-  }
-
-  var fromUrl = null;
-  try {
-    var q = new URLSearchParams(window.location.search).get("g");
-    if (q) fromUrl = q;
-  } catch(e){}
-
-  if (fromUrl){
-    var man = parseSlate(fromUrl);
-    if (man.games.length){
-      $("slateText").value = fromUrl;
-      setBoard(man.games, "Lines set by hand", "stale");
+    if (state.entries.length > 1){
+      show("compare", true);
+      $("compareSub").textContent = others.length === 1
+        ? state.entries.length + " entries in. Here's how they line up."
+        : state.entries.length + " entries in, side by side.";
+      renderCompare(grades);
     } else {
-      fromUrl = null;
+      show("compare", true);
+      $("compareSub").textContent = "You're first in. The others' picks appear here as they lock in.";
+      renderCompare(grades);
     }
   }
 
-  if (!fromUrl){
-    setBoard(SNAPSHOT.games.slice(), capturedLabel(), "stale");
-    $("sourceText").textContent = capturedLabel() + " · checking for live";
-    loadLive(function(ok, err){
-      if (ok) return;
-      var label = capturedLabel();
-      $("sourceText").textContent = games.length ? label + " · live lines unreachable"
-                                                 : label;
-      $("source").className = "source stale";
-      $("emptyText").textContent =
-        "These saved lines have all kicked off, and live odds can't be reached from here. " +
-        "Open the hosted page for this week's board, or set the lines by hand.";
-    });
+  /* ---------- flow ---------- */
+  function applyState(s){
+    state.board = s.board;
+    state.you = s.you;
+    state.entries = s.entries || [];
+    state.roster = s.roster || [];
   }
 
-  /* ---------- wiring ---------- */
-  var framed = false;
-  try { framed = window.top !== window.self; } catch(e){ framed = true; }
-  if (framed) $("shareBtn").classList.add("hidden");
-
-  $("editToggle").addEventListener("click", function(){
-    var open = $("editor").classList.toggle("hidden") === false;
-    this.textContent = open ? "Hide lines" : "Edit lines";
-    if (open) $("slateText").focus();
-  });
-
-  $("reloadBtn").addEventListener("click", function(){
-    $("editNote").textContent = "Fetching…";
-    $("editNote").className = "note";
-    loadLive(function(ok, err){
-      $("editNote").textContent = ok ? "Live lines loaded."
-        : "Couldn't reach the live board (" + err + ")" +
-          (framed ? " — outbound requests are blocked inside a Claude artifact." : ".");
-      $("editNote").className = ok ? "note ok" : "note";
-    });
-  });
-
-  $("applyBtn").addEventListener("click", function(){
-    var res = parseSlate($("slateText").value);
-    var err = $("editErr");
-    if (res.errors.length){
-      err.textContent = res.errors.join(" ");
-      err.classList.remove("hidden");
-    } else {
-      err.classList.add("hidden");
-    }
-    if (res.games.length){
-      live = false;
-      var text = $("slateText").value;
-      setBoard(res.games, "Lines set by hand", "stale");
-      $("slateText").value = text;
-      $("slip").classList.add("hidden");
-      $("picker").classList.remove("hidden");
-      $("editNote").textContent = "Board updated — " + res.games.length +
-        (res.games.length === 1 ? " game." : " games.");
-      $("editNote").className = "note ok";
-    }
-  });
-
-  $("shareBtn").addEventListener("click", function(){
-    var res = parseSlate($("slateText").value);
-    if (!res.games.length){
-      $("editErr").textContent = "Add at least one game first.";
-      $("editErr").classList.remove("hidden");
+  function route(){
+    if (!state.board){
+      show("waiting", true);
+      show("gate", false); show("picker", false); show("locked", false);
       return;
     }
-    var base = window.location.href.split("#")[0].split("?")[0];
-    copyToClipboard(base + "?g=" + encodeURIComponent($("slateText").value), function(ok){
-      $("editNote").textContent = ok ? "Link copied — these exact lines load for whoever opens it."
-                                     : "Couldn't copy the link automatically.";
-      $("editNote").className = ok ? "note ok" : "note";
+    if (state.you) return renderLocked();
+
+    show("waiting", false); show("locked", false);
+    if (!state.name){
+      show("gate", true); show("picker", false); show("whoami", false);
+      return;
+    }
+    show("gate", false);
+    $("whoamiName").textContent = state.name;
+    show("whoami", true);
+    show("picker", true);
+    renderBoard();
+  }
+
+  function loadScores(){
+    if (!state.board || state.preview) return Promise.resolve();
+    return api("/api/scores?season=" + state.board.season + "&week=" + state.board.week)
+      .then(function(j){ state.scores = j.scores || null; })
+      .catch(function(){});
+  }
+
+  function setSource(text, tone){
+    $("sourceText").textContent = text;
+    $("source").className = "source " + (tone || "");
+  }
+
+  function boot(){
+    state.secret = deviceSecret();
+    state.name = store("slip.name") || "";
+
+    if (state.preview){
+      state.board = { season: SNAPSHOT.season, week: SNAPSHOT.week, games: SNAPSHOT.games, frozenAt: SNAPSHOT.capturedAt };
+      setSource("Preview · not connected to the picks server", "warn");
+      $("tagline").textContent = "Preview of the board. Locking in needs the Worker URL set in the page — see the README.";
+      show("picker", true);
+      renderBoard();
+      return;
+    }
+
+    setSource("Connecting", "");
+    api("/api/week" + qs())
+      .then(function(s){
+        if (!s.board && s.pending) return trySelfHeal();
+        return s;
+      })
+      .then(function(s){
+        if (!s) return;
+        applyState(s);
+        if (state.board){
+          var frozen = new Date(state.board.frozenAt);
+          setSource("Week " + state.board.week + " · lines frozen " +
+            (isNaN(frozen) ? "" : frozen.toLocaleString(undefined, { weekday:"short", hour:"numeric", minute:"2-digit" })), "live");
+        }
+        return loadScores();
+      })
+      .then(route)
+      .catch(function(e){
+        setSource("Can't reach the picks server", "warn");
+        $("waitingTitle").textContent = "Can't reach the picks server";
+        $("waitingText").textContent = String(e.message || e);
+        show("waiting", true);
+      });
+  }
+
+  /* If the cron missed its window, open the board on first visit after
+     5am ET Sunday rather than leaving everyone stuck. */
+  function trySelfHeal(){
+    var et = new Date().toLocaleString("en-US", { timeZone: "America/New_York", weekday:"short", hour:"numeric", hour12:false });
+    if (et.indexOf("Sun") !== 0) return { board:null, pending:true, you:null, entries:[], roster:[] };
+    var hour = parseInt(et.split(" ").pop(), 10);
+    if (!(hour >= 5)) return { board:null, pending:true, you:null, entries:[], roster:[] };
+    return api("/api/board", { method: "POST" })
+      .then(function(){ return api("/api/week" + qs()); })
+      .catch(function(){ return { board:null, pending:true, you:null, entries:[], roster:[] }; });
+  }
+
+  /* ---------- events ---------- */
+  $("gateBtn").addEventListener("click", function(){
+    var n = $("nameInput").value.trim();
+    if (!n){
+      $("gateNote").textContent = "Put a name in first.";
+      $("gateNote").className = "note bad";
+      return;
+    }
+    state.name = n;
+    store("slip.name", n);
+    api("/api/week" + qs()).then(function(s){
+      if (s.nameTaken){
+        $("gateNote").textContent = "\"" + n + "\" is already locked in from another device. Use a different name.";
+        $("gateNote").className = "note bad";
+        state.name = "";
+        return;
+      }
+      applyState(s);
+      route();
+    }).catch(function(e){
+      $("gateNote").textContent = String(e.message || e);
+      $("gateNote").className = "note bad";
     });
   });
 
-  $("submitBtn").addEventListener("click", showSlip);
+  $("reviewBtn").addEventListener("click", function(){
+    renderReview();
+    $("reviewTitle").textContent = state.name + ", check it over";
+    show("picker", false);
+    show("review", true);
+    window.scrollTo(0, 0);
+  });
+
+  $("backBtn").addEventListener("click", function(){
+    show("review", false);
+    show("picker", true);
+    window.scrollTo(0, 0);
+  });
+
+  $("lockBtn").addEventListener("click", function(){
+    var btn = this;
+    btn.disabled = true;
+    $("lockNote").textContent = "Sealing…";
+    $("lockNote").className = "note";
+    api("/api/lock", {
+      method: "POST",
+      body: {
+        season: state.board.season, week: state.board.week,
+        name: state.name, secret: state.secret, picks: state.picks
+      }
+    }).then(function(s){
+      applyState(s);
+      return loadScores();
+    }).then(function(){
+      show("review", false);
+      renderLocked();
+      window.scrollTo(0, 0);
+    }).catch(function(e){
+      btn.disabled = false;
+      $("lockNote").textContent = String(e.message || e);
+      $("lockNote").className = "note bad";
+    });
+  });
+
+  boot();
 })();
 </script>
 </body>

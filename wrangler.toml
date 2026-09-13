@@ -1,0 +1,15 @@
+# Only needed if you deploy with the wrangler CLI. The dashboard route in
+# the README sets these same three things by hand.
+name = "sunday-slip"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# 5am ET Sunday. 09:00 UTC is 5am ET while daylight time is in effect and
+# 4am once it ends; the 10:00 run is a retry that no-ops if the first
+# already froze the board. Either way it lands hours before kickoff.
+[triggers]
+crons = ["0 9 * * 0", "0 10 * * 0"]
+
+[[kv_namespaces]]
+binding = "PICKS"
+id = "PASTE_YOUR_KV_NAMESPACE_ID"
