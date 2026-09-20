@@ -35,7 +35,7 @@ const UAS = [
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -272,10 +272,85 @@ async function scoresFor(season, week) {
   return scores;
 }
 
+
+/* ---------------- accounts ---------------- */
+
+/* Identity is an account, not a device. A user's id is the slug of their
+   name, which is also how entries have always been keyed — so signing up
+   as the name you played under last week picks your history straight up.
+   Set a SIGNUP_CODE secret on the Worker to stop strangers claiming a
+   name; without one, registration is open. */
+
+const SESSION_DAYS = 180;
+const PBKDF2_ITERS = 100000;
+const MAX_USERS = 12;
+
+const toHex = (buf) =>
+  [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+function randomHex(bytes) {
+  const b = new Uint8Array(bytes);
+  crypto.getRandomValues(b);
+  return toHex(b);
+}
+
+function fromHex(s) {
+  const a = new Uint8Array(s.length / 2);
+  for (let i = 0; i < a.length; i++) a[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16);
+  return a;
+}
+
+async function derive(password, saltHex) {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: fromHex(saltHex), iterations: PBKDF2_ITERS, hash: "SHA-256" },
+    key, 256
+  );
+  return toHex(bits);
+}
+
+/** Compare without leaking where two hashes diverge. */
+function sameHash(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function startSession(env, userId) {
+  const token = randomHex(32);
+  const ttl = SESSION_DAYS * 86400;
+  await env.PICKS.put(
+    `session:${token}`,
+    JSON.stringify({ userId, expiresAt: new Date(Date.now() + ttl * 1000).toISOString() }),
+    { expirationTtl: ttl }
+  );
+  return token;
+}
+
+/** The signed-in user for this request, or null. */
+async function whoIs(env, request, url) {
+  const header = request.headers.get("Authorization") || "";
+  let token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  if (!token) token = url.searchParams.get("token") || "";
+  if (!token) return null;
+
+  const s = await env.PICKS.get(`session:${token}`, "json");
+  if (!s || !s.userId) return null;
+  if (s.expiresAt && Date.now() > new Date(s.expiresAt).getTime()) return null;
+
+  const u = await env.PICKS.get(`user:${s.userId}`, "json");
+  return u ? { id: u.id, name: u.name } : null;
+}
+
+const needAuth = () => json({ error: "Sign in first." }, 401);
+
 /* ---------------- state ---------------- */
 
 /** Everything a client may know, given who is asking. */
-async function weekState(env, season, week, name, secret) {
+async function weekState(env, season, week, user) {
   const key = weekKey(season, week);
   const board = await env.PICKS.get(`board:${key}`, "json");
 
@@ -290,13 +365,11 @@ async function weekState(env, season, week, name, secret) {
   // Visible to everyone: who is in, and when. Never what they picked.
   const roster = all.map((e) => ({ name: e.name, lockedAt: e.lockedAt }));
 
-  const id = slug(name);
-  const mine = id ? all.find((e) => e.id === id) : null;
-  // A locked entry reads back only to the device that wrote it.
-  const you =
-    mine && mine.secret && mine.secret === secret
-      ? { name: mine.name, lockedAt: mine.lockedAt, picks: mine.picks }
-      : null;
+  // A locked entry reads back to its owner's account, from any device.
+  const mine = user ? all.find((e) => e.id === user.id) : null;
+  const you = mine
+    ? { name: mine.name, lockedAt: mine.lockedAt, picks: mine.picks }
+    : null;
 
   // The seal.
   const entries = you
@@ -307,7 +380,7 @@ async function weekState(env, season, week, name, secret) {
   return {
     board, you, entries, roster,
     locked: !!you,
-    nameTaken: !!(mine && !you),
+    signedInAs: user ? user.name : null,
     openIds: open.map((g) => g.id),
     closesAt: nextClose(open),
     closed: !!(board && !open.length),
@@ -324,20 +397,81 @@ async function handle(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   if (path === "/" || path === "/api") {
-    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/week", "/api/board", "/api/scores", "/api/lock", "/api/leaderboard"] });
+    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/leaderboard"] });
   }
 
-  /* GET /api/week?season=&week=&name=&secret=
+  /* ---- accounts ---- */
+
+  if (path === "/api/register" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
+    const { username, password, code } = body || {};
+
+    if (env.SIGNUP_CODE && String(code || "") !== String(env.SIGNUP_CODE)) {
+      return json({ error: "Wrong signup code." }, 403);
+    }
+
+    const name = String(username || "").trim().slice(0, 24);
+    const id = slug(name);
+    if (!id) return json({ error: "Pick a name using letters or numbers." }, 400);
+    if (String(password || "").length < 8) {
+      return json({ error: "Password needs at least 8 characters." }, 400);
+    }
+
+    if (await env.PICKS.get(`user:${id}`)) {
+      return json({ error: `"${name}" is taken. Sign in instead, or pick another name.` }, 409);
+    }
+    const existing = await env.PICKS.list({ prefix: "user:" });
+    if (existing.keys.length >= MAX_USERS) {
+      return json({ error: "This pool is full." }, 403);
+    }
+
+    const salt = randomHex(16);
+    await env.PICKS.put(`user:${id}`, JSON.stringify({
+      id, name, salt, hash: await derive(password, salt), createdAt: new Date().toISOString(),
+    }));
+
+    return json({ token: await startSession(env, id), user: { id, name } });
+  }
+
+  if (path === "/api/login" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
+    const id = slug(body && body.username);
+    const u = id ? await env.PICKS.get(`user:${id}`, "json") : null;
+
+    // Same answer whether the name or the password was wrong.
+    const fail = json({ error: "That name and password don't match." }, 401);
+    if (!u) { await derive(String((body && body.password) || ""), randomHex(16)); return fail; }
+    if (!sameHash(await derive(String((body && body.password) || ""), u.salt), u.hash)) return fail;
+
+    return json({ token: await startSession(env, u.id), user: { id: u.id, name: u.name } });
+  }
+
+  if (path === "/api/logout" && request.method === "POST") {
+    const header = request.headers.get("Authorization") || "";
+    const token = header.startsWith("Bearer ") ? header.slice(7).trim() : q.get("token");
+    if (token) await env.PICKS.delete(`session:${token}`);
+    return json({ ok: true });
+  }
+
+  if (path === "/api/me" && request.method === "GET") {
+    const user = await whoIs(env, request, url);
+    return json({ user, signupCodeRequired: !!env.SIGNUP_CODE });
+  }
+
+  /* GET /api/week?season=&week=
      Omit season/week to get whichever week is currently frozen. */
   if (path === "/api/week" && request.method === "GET") {
+    const user = await whoIs(env, request, url);
     let season = q.get("season"), week = q.get("week");
     if (!season || !week) {
       const cur = await env.PICKS.get("current", "json");
-      if (!cur) return json({ board: null, you: null, entries: [], roster: [], locked: false, pending: true });
+      if (!cur) return json({ board: null, you: null, entries: [], roster: [], locked: false, pending: true, signedInAs: user ? user.name : null });
       season = cur.season; week = cur.week;
     }
     if (badWeek(season, week)) return json({ error: "bad season or week" }, 400);
-    return json(await weekState(env, season, week, q.get("name"), q.get("secret")));
+    return json(await weekState(env, season, week, user));
   }
 
   /* POST /api/board — freeze now. Safe to call any number of times; only
@@ -429,12 +563,12 @@ async function handle(request, env) {
   if (path === "/api/lock" && request.method === "POST") {
     let body;
     try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
-    const { season, week, name, secret, picks } = body || {};
+    const { season, week, picks } = body || {};
     if (badWeek(season, week)) return json({ error: "bad season or week" }, 400);
 
-    const id = slug(name);
-    if (!id) return json({ error: "Enter a name before locking in." }, 400);
-    if (!secret || String(secret).length < 8) return json({ error: "missing device key" }, 400);
+    const user = await whoIs(env, request, url);
+    if (!user) return needAuth();
+    const id = user.id;
 
     const key = weekKey(season, week);
     const board = await env.PICKS.get(`board:${key}`, "json");
@@ -447,14 +581,8 @@ async function handle(request, env) {
       return json({ error: "Every game has kicked off. Nothing left to pick this week." }, 409);
     }
 
-    const prior = await env.PICKS.get(`entry:${key}:${id}`, "json");
-    if (prior) {
-      return json(
-        prior.secret === secret
-          ? { error: "You're already locked in for this week." }
-          : { error: `"${prior.name}" is already locked in. Use a different name.` },
-        409
-      );
+    if (await env.PICKS.get(`entry:${key}:${id}`)) {
+      return json({ error: "You're already locked in for this week." }, 409);
     }
 
     // Every game still open, or it isn't an entry. Games already under way
@@ -476,8 +604,7 @@ async function handle(request, env) {
       `entry:${key}:${id}`,
       JSON.stringify({
         id,
-        name: String(name).trim().slice(0, 40),
-        secret: String(secret),
+        name: user.name,
         lockedAt: new Date().toISOString(),
         picks: clean,
         // How many games were on the table when they locked, so a late
@@ -486,7 +613,7 @@ async function handle(request, env) {
       })
     );
 
-    return json(await weekState(env, season, week, name, secret));
+    return json(await weekState(env, season, week, user));
   }
 
   return json({ error: "not found" }, 404);

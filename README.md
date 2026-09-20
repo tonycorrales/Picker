@@ -10,14 +10,32 @@ Two pieces:
 - **`index.html`** — the page. Static; lives on GitHub Pages.
 - **`worker.js`** — the picks server. A Cloudflare Worker with one KV namespace.
 
+## Accounts
+
+Everyone signs in with a name and password. Identity lives on the account, not
+the browser, so your picks and your record follow you to any phone or laptop —
+clearing your browser no longer loses your week.
+
+A user's id is the slug of their name, which is also how entries have always
+been keyed. Signing up under the name you already played as picks up your
+history automatically; no migration step.
+
+Passwords are stored as PBKDF2-SHA256 over a per-user random salt, 100k
+iterations, and compared without leaking where two hashes diverge. Sessions are
+opaque random tokens in KV with a 180-day TTL, sent as a bearer token.
+
+Set a **SIGNUP_CODE** secret on the Worker (Settings → Variables and Secrets) to
+require a code when registering. Without one, anybody who finds the URL can
+claim a name — including a name that carries someone's history.
+
 ## How a week runs
 
-1. **5am ET Sunday**, a cron trigger wakes the Worker. It pulls the lines once,
-   keeps only that day's games, and writes them to KV. Nothing re-reads odds
+1. **Friday 11:59pm ET**, a cron trigger wakes the Worker. It pulls the lines
+   once, keeps only Sunday's games, and writes them to KV. Nothing re-reads odds
    after that, so all three of you play identical numbers no matter when you
-   pick, and a line that moves at noon changes nothing.
-2. Each person opens the page, enters their name, picks all the games, and locks
-   in. The entry is sealed server-side.
+   pick, and a line that moves Saturday changes nothing.
+2. Each person signs in, picks all the games, and locks in. The entry is sealed
+   server-side.
 3. **Until your own picks are locked you see nobody else's.** You can see *who*
    has locked in and when — just never what they took. This is enforced in the
    Worker, not the page, so it can't be stepped around with devtools.
@@ -58,9 +76,12 @@ doesn't.
 4. **Edit code**, replace everything with the contents of `worker.js`, deploy.
 5. **Settings → Bindings → Add → KV namespace.** Variable name must be exactly
    `PICKS`; pick the namespace from step 2. Deploy again.
-6. **Settings → Triggers → Cron Triggers → Add.** Add `0 9 * * SUN`, then add
-   `0 10 * * SUN`. (Cloudflare's weekday field runs 1-7 with 1 = Sunday, not
-   the usual 0-6, so a plain `0` is rejected. The abbreviation sidesteps it.)
+6. **Settings → Triggers → Cron Triggers → Add.** Add `59 3 * * SAT`, then add
+   `59 4 * * SAT`. Friday 11:59pm ET is Saturday in UTC, hence SAT. (Cloudflare's
+   weekday field runs 1-7 with 1 = Sunday, not the usual 0-6, so a plain number
+   is easy to get wrong; the abbreviation sidesteps it.) In winter the first one
+   lands at 10:59pm ET rather than 11:59 — an hour early on a Friday night,
+   which costs nothing.
 7. Copy the Worker's URL — `https://sunday-slip.<something>.workers.dev`.
 
 Visiting that URL in a browser should return `{"ok":true,...}`. If it says
@@ -90,10 +111,7 @@ play stale numbers.
 
 ## Notes
 
-- Names are free text and claimed per device. The first device to lock in under
-  a name owns it for that week; another device using the same name is turned
-  away rather than allowed to overwrite or peek. Clearing browser data gives up
-  that claim, so pick a name and stay on one device.
+- Names are claimed once, by account. Sign in from as many devices as you like.
 - Entries can't be changed once locked, and you get one entry per week — you
   can't lock the early games and top up later.
 - Storage is tiny — one board and three entries per week, well inside KV's free
@@ -106,7 +124,8 @@ play stale numbers.
 | `GET /api/week?season&week&name&secret` | Board, your entry, the roster, and — only if you're locked — everyone's entries |
 | `POST /api/board` | Freeze this week's lines. First call wins; later calls no-op |
 | `GET /api/scores?season&week` | Final scores for grading |
-| `POST /api/lock` | Seal one person's entry (games already kicked off are dropped) |
+| `POST /api/register` · `/api/login` · `/api/logout` · `/api/me` | Accounts and sessions |
+| `POST /api/lock` | Seal the signed-in user's entry (games already kicked off are dropped) |
 | `GET /api/leaderboard?season` | Season-to-date standings, ranked on overall % |
 
 Lines and scores come from ESPN's public scoreboard endpoint, which needs no key

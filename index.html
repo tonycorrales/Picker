@@ -326,23 +326,33 @@ footer{
     </div>
     <div class="headright">
       <button class="linkbtn" id="lbBtn" type="button">Leaderboard</button>
-      <div class="whoami hidden" id="whoami">Playing as<b id="whoamiName"></b></div>
+      <div class="whoami hidden" id="whoami">Signed in as<b id="whoamiName"></b></div>
+      <button class="linkbtn hidden" id="signOut" type="button">Sign out</button>
     </div>
   </header>
 
   <p class="source" id="source"><span class="led"></span><span id="sourceText">Connecting</span></p>
   <p class="source warn hidden" id="deadline"><span class="led"></span><span id="deadlineText"></span></p>
 
-  <!-- who are you -->
-  <section class="panel hidden" id="gate">
-    <h2>Who's picking?</h2>
-    <p>Your name shows on the board so everyone knows who's in. It also claims your entry on this device — use the same one each week.</p>
+  <!-- sign in -->
+  <section class="panel hidden" id="auth">
+    <h2 id="authTitle">Sign in</h2>
+    <p id="authSub">Your picks and your record live with your account, so they follow you to any phone or laptop.</p>
     <div class="field">
-      <label for="nameInput">Name</label>
-      <input id="nameInput" type="text" placeholder="First name is plenty" autocomplete="name" maxlength="40">
+      <label for="authName">Name</label>
+      <input id="authName" type="text" placeholder="First name is plenty" autocomplete="username" maxlength="24">
     </div>
-    <button class="btn" id="gateBtn" type="button">Start picking</button>
-    <p class="note" id="gateNote"></p>
+    <div class="field">
+      <label for="authPass">Password</label>
+      <input id="authPass" type="password" placeholder="At least 8 characters" autocomplete="current-password">
+    </div>
+    <div class="field hidden" id="codeField">
+      <label for="authCode">Code</label>
+      <input id="authCode" type="text" placeholder="From whoever runs the pool" autocomplete="off">
+    </div>
+    <button class="btn" id="authBtn" type="button">Sign in</button>
+    <button class="btn ghost" id="authSwap" type="button" style="margin-top:8px">Create an account</button>
+    <p class="note" id="authNote"></p>
   </section>
 
   <!-- waiting for the board -->
@@ -438,11 +448,18 @@ footer{
   /* ================================================================ */
 
   var $ = function(id){ return document.getElementById(id); };
-  var show = function(id, on){ $(id).classList.toggle("hidden", !on); };
+  var show = function(id, on){
+    var el = $(id);
+    // A missing id means a view was renamed and a caller wasn't: shout
+    // rather than throwing halfway through hiding the other panels.
+    if (!el) { console.error("show(): no element #" + id); return; }
+    el.classList.toggle("hidden", !on);
+  };
 
   var state = {
     board: null, you: null, entries: [], roster: [],
-    picks: {}, scores: null, preview: !API_BASE, name: "", secret: ""
+    picks: {}, scores: null, preview: !API_BASE,
+    token: "", user: null, codeRequired: false, authMode: "login"
   };
 
   /* ---------- identity, kept on this device ---------- */
@@ -450,19 +467,6 @@ footer{
     try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }
     catch(e){ return null; }
   }
-  function deviceSecret(){
-    var s = store("slip.secret");
-    if (!s){
-      s = "";
-      var chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-      var buf = new Uint8Array(24);
-      (window.crypto || {}).getRandomValues ? window.crypto.getRandomValues(buf) : buf.forEach(function(_, i){ buf[i] = Math.floor(Math.random() * 256); });
-      for (var i = 0; i < buf.length; i++) s += chars[buf[i] % chars.length];
-      store("slip.secret", s);
-    }
-    return s;
-  }
-
   /* ---------- formatting ---------- */
   function fmtSpread(n){ return !n ? "PK" : (n < 0 ? "-" : "+") + Math.abs(n); }
   function fmtKick(g){
@@ -480,13 +484,21 @@ footer{
   function api(path, opts){
     if (state.preview) return Promise.reject(new Error("preview"));
     var o = opts || {};
+    var headers = {};
+    if (o.body) headers["Content-Type"] = "application/json";
+    if (state.token) headers["Authorization"] = "Bearer " + state.token;
     return fetch(API_BASE + path, {
       method: o.method || "GET",
-      headers: o.body ? { "Content-Type": "application/json" } : undefined,
+      headers: headers,
       body: o.body ? JSON.stringify(o.body) : undefined,
       cache: "no-store"
     }).then(function(r){
       return r.json().then(function(j){
+        // Session gone or expired: back to the sign-in screen, not an error.
+        if (r.status === 401 && state.token){
+          forgetSession();
+          showAuth("login", "Signed out — sign back in to pick.");
+        }
         if (!r.ok) throw new Error(j && j.error ? j.error : "HTTP " + r.status);
         return j;
       });
@@ -494,9 +506,7 @@ footer{
   }
 
   function qs(){
-    var p = "?name=" + encodeURIComponent(state.name || "") + "&secret=" + encodeURIComponent(state.secret);
-    if (state.board) p += "&season=" + state.board.season + "&week=" + state.board.week;
-    return p;
+    return state.board ? "?season=" + state.board.season + "&week=" + state.board.week : "";
   }
 
   /* ---------- grading ---------- */
@@ -922,8 +932,9 @@ footer{
   }
 
   function renderLocked(){
-    show("gate", false); show("picker", false); show("review", false);
-    show("waiting", false); show("locked", true);
+    show("auth", false); show("picker", false); show("review", false);
+    show("waiting", false); show("closed", false); show("locked", true);
+    show("signOut", true);
     $("whoamiName").textContent = state.you.name;
     show("whoami", true);
 
@@ -1027,7 +1038,7 @@ footer{
 
   /* ---------- leaderboard ---------- */
   function showLeaderboard(){
-    ["gate","picker","review","locked","waiting","closed"].forEach(function(id){ show(id, false); });
+    ["auth","picker","review","locked","waiting","closed"].forEach(function(id){ show(id, false); });
     show("leaderboard", true);
     window.scrollTo(0, 0);
     if (state.preview){
@@ -1097,29 +1108,28 @@ footer{
 
   function route(){
     show("leaderboard", false);
+    show("auth", false);
+    show("whoami", !!state.user);
+    show("signOut", !!state.user);
     if (!state.board){
       show("waiting", true);
-      show("gate", false); show("picker", false); show("locked", false); show("closed", false);
+      show("picker", false); show("locked", false); show("closed", false);
       return;
     }
     showDeadline();
     if (state.you) return renderLocked();
 
-    show("waiting", false); show("locked", false);
+    show("waiting", false); show("locked", false); show("auth", false);
 
     // Board shut, and you never got an entry in.
     if (state.closed){
-      show("closed", true); show("gate", false); show("picker", false);
+      show("closed", true); show("picker", false);
       return;
     }
     show("closed", false);
-    if (!state.name){
-      show("gate", true); show("picker", false); show("whoami", false);
-      return;
-    }
-    show("gate", false);
-    $("whoamiName").textContent = state.name;
-    show("whoami", true);
+    $("whoamiName").textContent = state.user ? state.user.name : "";
+    show("whoami", !!state.user);
+    show("signOut", !!state.user);
     show("picker", true);
     renderBoard();
   }
@@ -1146,21 +1156,34 @@ footer{
     $("source").className = "source " + (tone || "");
   }
 
-  function boot(){
-    state.secret = deviceSecret();
-    state.name = store("slip.name") || "";
+  function forgetSession(){
+    state.token = ""; state.user = null;
+    store("slip.token", "");
+  }
 
-    if (state.preview){
-      state.board = { season: SNAPSHOT.season, week: SNAPSHOT.week, games: SNAPSHOT.games, frozenAt: SNAPSHOT.capturedAt };
-      setSource("Preview · not connected to the picks server", "warn");
-      $("tagline").textContent = "Preview of the board. Locking in needs the Worker URL set in the page — see the README.";
-      show("picker", true);
-      renderBoard();
-      return;
-    }
+  function setAuthMode(mode){
+    state.authMode = mode;
+    var creating = mode === "register";
+    $("authTitle").textContent = creating ? "Create an account" : "Sign in";
+    $("authSub").textContent = creating
+      ? "Use the same name you've been picking under and your record comes with you."
+      : "Your picks and your record live with your account, so they follow you to any phone or laptop.";
+    $("authBtn").textContent = creating ? "Create account" : "Sign in";
+    $("authSwap").textContent = creating ? "I already have an account" : "Create an account";
+    $("authPass").setAttribute("autocomplete", creating ? "new-password" : "current-password");
+    $("codeField").classList.toggle("hidden", !(creating && state.codeRequired));
+  }
 
-    setSource("Connecting", "");
-    api("/api/week" + qs())
+  function showAuth(mode, message){
+    ["picker", "review", "locked", "waiting", "closed", "leaderboard"].forEach(function(id){ show(id, false); });
+    show("auth", true); show("whoami", false); show("signOut", false);
+    setAuthMode(mode || "login");
+    $("authNote").textContent = message || "";
+    $("authNote").className = message ? "note bad" : "note";
+  }
+
+  function loadWeek(){
+    return api("/api/week" + qs())
       .then(function(s){
         if (!s.board && s.pending) return trySelfHeal();
         return s;
@@ -1184,53 +1207,124 @@ footer{
       });
   }
 
-  /* If the cron missed its window, open the board on first visit after
-     5am ET Sunday rather than leaving everyone stuck. */
+  function boot(){
+    state.token = store("slip.token") || "";
+
+    if (state.preview){
+      state.board = { season: SNAPSHOT.season, week: SNAPSHOT.week, games: SNAPSHOT.games, frozenAt: SNAPSHOT.capturedAt };
+      setSource("Preview · not connected to the picks server", "warn");
+      $("tagline").textContent = "Preview of the board. Signing in and locking picks needs the Worker URL set in the page — see the README.";
+      show("picker", true);
+      renderBoard();
+      return;
+    }
+
+    setSource("Connecting", "");
+    api("/api/me")
+      .then(function(j){
+        state.codeRequired = !!j.signupCodeRequired;
+        if (!j.user){
+          forgetSession();
+          showAuth("login");
+          setSource("Sign in to pick", "warn");
+          return;
+        }
+        state.user = j.user;
+        return loadWeek();
+      })
+      .catch(function(e){
+        var msg = String(e.message || e);
+        // The accounts endpoints only exist on the updated Worker. If it
+        // answers but doesn't know them, say so plainly rather than
+        // showing a sign-in box that cannot possibly work.
+        if (/not found|404/i.test(msg)){
+          setSource("Picks server needs updating", "warn");
+          showAuth("login", "The picks server is still running the old version, which has no accounts yet. Deploy the updated worker.js and reload.");
+        } else {
+          setSource("Can't reach the picks server", "warn");
+          showAuth("login", msg);
+        }
+      });
+  }
+
+  /* The board is meant to open late Friday. If that cron missed, open it
+     on the first visit over the weekend rather than leaving everyone stuck.
+     Earlier in the week we leave it alone, so a midweek visit can't freeze
+     next Sunday's lines days ahead of time. */
   function trySelfHeal(){
-    var et = new Date().toLocaleString("en-US", { timeZone: "America/New_York", weekday:"short", hour:"numeric", hour12:false });
-    if (et.indexOf("Sun") !== 0) return { board:null, pending:true, you:null, entries:[], roster:[] };
-    var hour = parseInt(et.split(" ").pop(), 10);
-    if (!(hour >= 5)) return { board:null, pending:true, you:null, entries:[], roster:[] };
+    var day = new Date().toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" });
+    if (day !== "Sat" && day !== "Sun") return { board:null, pending:true, you:null, entries:[], roster:[] };
     return api("/api/board", { method: "POST" })
       .then(function(){ return api("/api/week" + qs()); })
       .catch(function(){ return { board:null, pending:true, you:null, entries:[], roster:[] }; });
   }
 
   /* ---------- events ---------- */
-  $("gateBtn").addEventListener("click", function(){
-    var n = $("nameInput").value.trim();
-    if (!n){
-      $("gateNote").textContent = "Put a name in first.";
-      $("gateNote").className = "note bad";
-      return;
-    }
-    state.name = n;
-    store("slip.name", n);
-    api("/api/week" + qs()).then(function(s){
-      if (s.nameTaken){
-        $("gateNote").textContent = "\"" + n + "\" is already locked in from another device. Use a different name.";
-        $("gateNote").className = "note bad";
-        state.name = "";
-        return;
-      }
-      applyState(s);
-      route();
-    }).catch(function(e){
-      $("gateNote").textContent = String(e.message || e);
-      $("gateNote").className = "note bad";
-    });
-  });
-
   $("lbBtn").addEventListener("click", showLeaderboard);
   $("lbBack").addEventListener("click", function(){
     show("leaderboard", false);
     if (state.preview){ show("picker", true); return; }
+    if (!state.user){ showAuth("login"); return; }
     route();
+  });
+
+  $("authSwap").addEventListener("click", function(){
+    setAuthMode(state.authMode === "login" ? "register" : "login");
+    $("authNote").textContent = "";
+  });
+
+  function submitAuth(){
+    var name = $("authName").value.trim();
+    var pass = $("authPass").value;
+    var note = $("authNote");
+    if (!name || !pass){
+      note.textContent = "Name and password, please.";
+      note.className = "note bad";
+      return;
+    }
+    var creating = state.authMode === "register";
+    var body = { username: name, password: pass };
+    if (creating) body.code = $("authCode").value.trim();
+
+    $("authBtn").disabled = true;
+    note.textContent = creating ? "Creating…" : "Signing in…";
+    note.className = "note";
+
+    api(creating ? "/api/register" : "/api/login", { method: "POST", body: body })
+      .then(function(j){
+        state.token = j.token;
+        state.user = j.user;
+        store("slip.token", j.token);
+        $("authBtn").disabled = false;
+        $("authPass").value = "";
+        show("auth", false);
+        return loadWeek();
+      })
+      .catch(function(e){
+        $("authBtn").disabled = false;
+        note.textContent = String(e.message || e);
+        note.className = "note bad";
+      });
+  }
+
+  $("authBtn").addEventListener("click", submitAuth);
+  $("authPass").addEventListener("keydown", function(e){ if (e.key === "Enter") submitAuth(); });
+  $("authName").addEventListener("keydown", function(e){ if (e.key === "Enter") $("authPass").focus(); });
+
+  $("signOut").addEventListener("click", function(){
+    var done = function(){
+      forgetSession();
+      stopLive();
+      state.board = null; state.you = null; state.entries = []; state.roster = []; state.picks = {};
+      showAuth("login", "");
+      setSource("Sign in to pick", "warn");
+    };
+    api("/api/logout", { method: "POST" }).then(done, done);
   });
 
   $("reviewBtn").addEventListener("click", function(){
     renderReview();
-    $("reviewTitle").textContent = state.name + ", check it over";
+    $("reviewTitle").textContent = (state.user ? state.user.name + ", check it over" : "Check it over");
     show("picker", false);
     show("review", true);
     window.scrollTo(0, 0);
@@ -1251,7 +1345,6 @@ footer{
       method: "POST",
       body: {
         season: state.board.season, week: state.board.week,
-        name: state.name, secret: state.secret,
         picks: openPicks()
       }
     }).then(function(s){
