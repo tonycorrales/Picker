@@ -414,8 +414,8 @@ async function handle(request, env) {
     const name = String(username || "").trim().slice(0, 24);
     const id = slug(name);
     if (!id) return json({ error: "Pick a name using letters or numbers." }, 400);
-    if (String(password || "").length < 8) {
-      return json({ error: "Password needs at least 8 characters." }, 400);
+    if (String(password || "").length < 4) {
+      return json({ error: "Password needs at least 4 characters." }, 400);
     }
 
     if (await env.PICKS.get(`user:${id}`)) {
