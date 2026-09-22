@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Daily Planner</title>
+<title>Live Hard</title>
 <meta name="description" content="A weekly routine you check off day by day, with buckets and daily goals.">
 <style>
   :root {
@@ -317,6 +317,47 @@
   .status.green b { color: var(--green); } .status.red b { color: var(--red); }
   .status.yellow b { color: color-mix(in srgb, var(--yellow) 75%, var(--ink)); }
 
+  /* Overview */
+  .ov-hero { display: flex; align-items: stretch; margin: 18px 0 12px; overflow: hidden; }
+  .ov-streak { flex: 1; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 2px;
+    background: color-mix(in srgb, var(--green) 12%, var(--surface)); }
+  .ov-record { padding: 18px 20px 16px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; border-left: 1px solid var(--line); }
+  .ov-big { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--green); font-variant-numeric: tabular-nums; }
+  .ov-mid { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ov-lbl { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .ov-tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tly { padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 2px; border-top: 4px solid; }
+  .tly b { font-size: 28px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .tly span { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  .tly.st-green { border-top-color: var(--green); } .tly.st-green b { color: var(--green); }
+  .tly.st-yellow { border-top-color: var(--yellow); } .tly.st-yellow b { color: color-mix(in srgb, var(--yellow) 75%, var(--ink)); }
+  .tly.st-red { border-top-color: var(--red); } .tly.st-red b { color: var(--red); }
+  .ov-note { font-size: 13px; color: var(--ink-3); margin: 10px 2px 16px; }
+  .cal { padding: 12px 12px 14px; }
+  .cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cal-head h2 { flex: 1; text-align: center; margin: 0; font-size: 17px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .cal-dow span { text-align: center; font-size: 11px; font-weight: 600; color: var(--ink-3); padding-bottom: 2px; }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2);
+    font-weight: 600; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; padding: 0;
+  }
+  .cal-day.future { background: transparent; color: var(--ink-3); }
+  .cal-day.today { box-shadow: 0 0 0 2px var(--ink) inset; }
+  .cal-day.st-green  { background: var(--green);  border-color: transparent; color: #fff; }
+  .cal-day.st-yellow { background: var(--yellow); border-color: transparent; color: #2a2100; }
+  .cal-day.st-red    { background: var(--red);    border-color: transparent; color: #fff; }
+  .cal-foot { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 13px; color: var(--ink-2); align-items: center; }
+  .cal-foot .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+  .dot.st-green { background: var(--green); } .dot.st-yellow { background: var(--yellow); } .dot.st-red { background: var(--red); }
+  .cal-hint { color: var(--ink-3); margin-left: auto; font-size: 12px; }
+  @media (max-width: 520px) {
+    .ov-big { font-size: 46px; }
+    .tly b { font-size: 24px; }
+    .tly span { font-size: 11.5px; }
+    .seg button { padding: 6px 10px; }
+  }
+
   /* Water */
   .goal.water { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   .wbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
@@ -364,10 +405,11 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand">Daily Planner</div>
+    <div class="brand">Live Hard</div>
     <div class="seg" role="group" aria-label="View">
       <button data-view="day">Day</button>
-      <button data-view="routine">Weekly routine</button>
+      <button data-view="routine">Routine</button>
+      <button data-view="overview">Overview</button>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="Goals, check-in and data">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
@@ -513,12 +555,14 @@
   // 'max' (at most) or 'log' (just record it, not graded).
   function defaultTracking() {
     return {
+      v: 2,
       water: { target: 100, unit: 'oz', quick: [8, 16, 24] },
       metrics: [
         { id: 'weight',   name: 'Morning weight', unit: 'lb',   rule: 'log', target: 0 },
         { id: 'sleep',    name: 'Hours slept',    unit: 'h',    rule: 'min', target: 8 },
         { id: 'calories', name: 'Calories',       unit: 'kcal', rule: 'max', target: 2500 },
         { id: 'protein',  name: 'Protein',        unit: 'g',    rule: 'min', target: 180 },
+        { id: 'steps',    name: 'Steps',          unit: 'steps', rule: 'min', target: 10000 },
       ],
       checks: [
         { id: 'nicotine', name: 'Nicotine',         want: 'no' },
@@ -538,6 +582,12 @@
     s.tracking.water = { ...def.water, ...s.tracking.water };
     s.tracking.metrics = Array.isArray(s.tracking.metrics) ? s.tracking.metrics : def.metrics;
     s.tracking.checks = Array.isArray(s.tracking.checks) ? s.tracking.checks : def.checks;
+    // One-time additions for saves made before a metric existed. Deleting it
+    // later sticks, because the version number moves past it.
+    if ((s.tracking.v || 1) < 2) {
+      if (!s.tracking.metrics.some(m => m.id === 'steps')) s.tracking.metrics.push({ ...def.metrics.find(m => m.id === 'steps'), since: todayKey() });
+      s.tracking.v = 2;
+    }
     return s;
   }
 
@@ -562,7 +612,7 @@
 
   let state = normalize(load() || seed());
 
-  const view = { tab: 'day', date: todayKey(), dow: new Date().getDay() };
+  const view = { tab: 'day', date: todayKey(), dow: new Date().getDay(), month: todayKey().slice(0, 7) };
 
   // ---------- model ----------
   const bucketOf = id => state.buckets.find(b => b.id === id);
@@ -594,10 +644,14 @@
     const items = [];
     for (const g of state.goals) if (g.target > 0) items.push({ name: g.name, ok: goalProgress(g, tasks).done >= g.target });
     if (tr.water.target > 0) items.push({ name: 'Water', ok: waterTotal(k) >= tr.water.target });
-    for (const m of tr.metrics) if (m.rule !== 'log') items.push({ name: m.name, ok: metricOk(m, rec.log?.[m.id]) });
-    for (const c of tr.checks) items.push({ name: c.name, ok: rec.checks?.[c.id] === c.want });
+    // Something added to the check-in later only counts from the day it was
+    // added, so it can't retroactively turn old green days yellow.
+    const metrics = tr.metrics.filter(m => !m.since || k >= m.since);
+    const checks = tr.checks.filter(c => !c.since || k >= c.since);
+    for (const m of metrics) if (m.rule !== 'log') items.push({ name: m.name, ok: metricOk(m, rec.log?.[m.id]) });
+    for (const c of checks) items.push({ name: c.name, ok: rec.checks?.[c.id] === c.want });
     const short = items.filter(i => !i.ok);
-    const answered = tr.metrics.every(m => hasValue(rec.log?.[m.id])) && tr.checks.every(c => rec.checks?.[c.id]);
+    const answered = metrics.every(m => hasValue(rec.log?.[m.id])) && checks.every(c => rec.checks?.[c.id]);
     const today = todayKey();
     // Past days are graded once there's anything recorded; today only once the
     // check-in is filled in, so it isn't red all morning.
@@ -634,7 +688,7 @@
 
   function render() {
     for (const b of document.querySelectorAll('[data-view]')) b.setAttribute('aria-pressed', String(b.dataset.view === view.tab));
-    app.innerHTML = view.tab === 'day' ? renderDay() : renderRoutine();
+    app.innerHTML = view.tab === 'day' ? renderDay() : view.tab === 'routine' ? renderRoutine() : renderOverview();
     if (view.tab === 'day' && state.ui.mode === 'timeline') scrollTimelineOnce();
   }
 
@@ -674,7 +728,8 @@
       ${renderCheckin(k)}`;
   }
 
-  const STATUS_LABEL = { green: 'Green day', yellow: 'Yellow day', red: 'Red day' };
+  const STATUS_LABEL = { green: 'Lived Hard', yellow: 'Complacent', red: 'Lived Soft' };
+  const STATUS_TITLE = { green: 'Day Lived Hard', yellow: 'Day Complacent', red: 'Day Lived Soft' };
   function renderStatus(k) {
     const sc = dayScore(k);
     if (!sc.items.length) return '';
@@ -683,7 +738,7 @@
       if (k > todayKey()) return '';
       return `<div class="status pending"><b>In progress</b><span>${sc.items.length - sc.short.length} of ${sc.items.length} hit so far · colored once the check-in is filled in</span></div>`;
     }
-    return `<div class="status ${sc.status}"><b>${STATUS_LABEL[sc.status]}</b><span>${sc.short.length
+    return `<div class="status ${sc.status}"><b>${STATUS_TITLE[sc.status]}</b><span>${sc.short.length
       ? `${sc.short.length} short: ${shortList}`
       : `Every goal hit — all ${sc.items.length}.`}</span></div>`;
   }
@@ -921,6 +976,90 @@
   app.addEventListener('pointerup', endDrag);
   app.addEventListener('pointercancel', endDrag);
 
+  // ---------- overview ----------
+  // Every graded day, oldest first. Days are graded only once they have data,
+  // so the scan only needs the stored dates (plus today).
+  function gradedDays() {
+    const keys = new Set(Object.keys(state.days));
+    keys.add(todayKey());
+    return [...keys].sort().map(k => ({ k, sc: dayScore(k) })).filter(d => d.sc.graded);
+  }
+
+  function lifeStats() {
+    const days = gradedDays();
+    const tally = { green: 0, yellow: 0, red: 0 };
+    for (const d of days) tally[d.sc.status]++;
+    // Record: longest run of green days on consecutive calendar dates.
+    let best = 0, run = 0, prev = null;
+    for (const d of days) {
+      if (d.sc.status !== 'green') { run = 0; prev = null; continue; }
+      run = prev && addDays(prev, 1) === d.k ? run + 1 : 1;
+      prev = d.k;
+      best = Math.max(best, run);
+    }
+    // Current: count back from today. Today still in progress doesn't break it.
+    const status = new Map(days.map(d => [d.k, d.sc.status]));
+    let k = todayKey();
+    if (!status.has(k)) k = addDays(k, -1);
+    let current = 0;
+    while (status.get(k) === 'green') { current++; k = addDays(k, -1); }
+    return { tally, current, best, total: days.length };
+  }
+
+  function renderOverview() {
+    const { tally, current, best, total } = lifeStats();
+    const [y, m] = view.month.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const monthName = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const lead = (first.getDay() + 6) % 7; // Monday-first grid
+    const daysIn = new Date(y, m, 0).getDate();
+    const today = todayKey();
+    const mt = { green: 0, yellow: 0, red: 0 };
+    let cells = '';
+    for (let i = 0; i < lead; i++) cells += '<span class="cal-pad"></span>';
+    for (let d = 1; d <= daysIn; d++) {
+      const k = `${y}-${pad(m)}-${pad(d)}`;
+      const sc = k <= today ? dayScore(k) : null;
+      const st = sc?.graded ? sc.status : '';
+      if (st) mt[st]++;
+      const label = st ? STATUS_TITLE[st] : k > today ? 'Upcoming' : k === today ? 'In progress' : 'No record';
+      cells += `<button class="cal-day${st ? ' st-' + st : ''}${k === today ? ' today' : ''}${k > today ? ' future' : ''}" data-open="${k}" aria-label="${esc(dateOf(k).toDateString())}: ${label}">${d}</button>`;
+    }
+    const pct = total ? Math.round(100 * tally.green / total) : 0;
+    return `
+      <div class="ov-hero card">
+        <div class="ov-streak">
+          <span class="ov-big">${current}</span>
+          <span class="ov-lbl">Consecutive Days Lived Hard</span>
+        </div>
+        <div class="ov-record">
+          <span class="ov-mid">${best}</span>
+          <span class="ov-lbl">Record streak</span>
+        </div>
+      </div>
+      <div class="ov-tally">
+        <div class="card tly st-green"><b>${tally.green}</b><span>Days Lived Hard</span></div>
+        <div class="card tly st-yellow"><b>${tally.yellow}</b><span>Days Complacent</span></div>
+        <div class="card tly st-red"><b>${tally.red}</b><span>Days Lived Soft</span></div>
+      </div>
+      <p class="ov-note">${total ? `${pct}% of ${total} graded day${total === 1 ? '' : 's'} lived hard.` : 'No graded days yet — fill in a check-in to start the count.'}</p>
+      <section class="card cal">
+        <div class="cal-head">
+          <button class="icon-btn" data-act="prevMonth" aria-label="Previous month">‹</button>
+          <h2>${esc(monthName)}</h2>
+          <button class="icon-btn" data-act="nextMonth" aria-label="Next month">›</button>
+        </div>
+        <div class="cal-grid cal-dow">${WEEK_ORDER.map(d => `<span>${DOW[d][0]}</span>`).join('')}</div>
+        <div class="cal-grid">${cells}</div>
+        <div class="cal-foot">
+          <span><i class="dot st-green"></i>${mt.green} hard</span>
+          <span><i class="dot st-yellow"></i>${mt.yellow} complacent</span>
+          <span><i class="dot st-red"></i>${mt.red} soft</span>
+          <span class="cal-hint">this month · tap a day to open it</span>
+        </div>
+      </section>`;
+  }
+
   // ---------- routine view ----------
   function renderRoutine() {
     const dow = view.dow;
@@ -952,13 +1091,15 @@
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
     view.tab = b.dataset.view;
     if (view.tab === 'routine') view.dow = dateOf(view.date).getDay();
+    if (view.tab === 'overview') view.month = view.date.slice(0, 7);
     render();
     window.scrollTo({ top: 0 });
   }));
 
   app.addEventListener('click', e => {
-    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode]');
+    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode], [data-open]');
     if (!el || drag) return;
+    if (el.dataset.open) { view.date = el.dataset.open; view.tab = 'day'; render(); window.scrollTo({ top: 0 }); return; }
     if (el.dataset.date) { view.date = el.dataset.date; render(); return; }
     if (el.dataset.dow) { view.dow = +el.dataset.dow; render(); return; }
     if (el.dataset.mode) { state.ui.mode = el.dataset.mode; tlScrolled = null; commit(); return; }
@@ -967,6 +1108,13 @@
       case 'prev': view.date = addDays(view.date, -1); render(); break;
       case 'next': view.date = addDays(view.date, 1); render(); break;
       case 'today': view.date = todayKey(); render(); break;
+      case 'prevMonth': case 'nextMonth': {
+        const [y, m] = view.month.split('-').map(Number);
+        const d = new Date(y, m - 1 + (el.dataset.act === 'nextMonth' ? 1 : -1), 1);
+        view.month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+        render();
+        break;
+      }
       case 'add': openTask(currentCtx(), null); break;
       case 'edit': openTask(currentCtx(), id); break;
       case 'settings': openSettings(); break;
@@ -1309,11 +1457,11 @@
       state.tracking.checks = state.tracking.checks.filter(c => c.id !== id);
       persist(); renderSettings();
     } else if (t.id === 'addMetric') {
-      state.tracking.metrics.push({ id: uid(), name: 'New number', unit: '', rule: 'min', target: 0 });
+      state.tracking.metrics.push({ id: uid(), name: 'New number', unit: '', rule: 'min', target: 0, since: todayKey() });
       persist(); renderSettings();
       [...setBody.querySelectorAll('[data-mid] [data-m="name"]')].at(-1)?.select();
     } else if (t.id === 'addCheck') {
-      state.tracking.checks.push({ id: uid(), name: 'New question', want: 'no' });
+      state.tracking.checks.push({ id: uid(), name: 'New question', want: 'no', since: todayKey() });
       persist(); renderSettings();
       [...setBody.querySelectorAll('[data-cid] [data-c="name"]')].at(-1)?.select();
     } else if (t.id === 'exportBtn') {
