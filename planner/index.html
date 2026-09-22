@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Daily Planner</title>
+<title>Live Hard</title>
 <meta name="description" content="A weekly routine you check off day by day, with buckets and daily goals.">
 <style>
   :root {
@@ -298,6 +298,96 @@
   .toast.show { opacity: 1; transform: translateX(-50%); pointer-events: auto; }
   .toast button { background: none; border: 0; color: inherit; font-weight: 700; margin-left: 10px; text-decoration: underline; }
 
+  /* Day grade */
+  :root { --green: #2e9d57; --yellow: #d4a017; --red: #d64545; }
+  .wd.st-green  { background: color-mix(in srgb, var(--green) 16%, var(--surface));  border-color: color-mix(in srgb, var(--green) 55%, transparent); }
+  .wd.st-yellow { background: color-mix(in srgb, var(--yellow) 18%, var(--surface)); border-color: color-mix(in srgb, var(--yellow) 60%, transparent); }
+  .wd.st-red    { background: color-mix(in srgb, var(--red) 15%, var(--surface));    border-color: color-mix(in srgb, var(--red) 55%, transparent); }
+  .wd[class*="st-"] .ring::after { background: transparent; }
+  .status {
+    display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+    border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px;
+    border: 1px solid var(--line); background: var(--surface);
+  }
+  .status b { font-weight: 700; }
+  .status span { color: var(--ink-2); }
+  .status.green  { background: color-mix(in srgb, var(--green) 14%, var(--surface));  border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+  .status.yellow { background: color-mix(in srgb, var(--yellow) 16%, var(--surface)); border-color: color-mix(in srgb, var(--yellow) 50%, transparent); }
+  .status.red    { background: color-mix(in srgb, var(--red) 13%, var(--surface));    border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+  .status.green b { color: var(--green); } .status.red b { color: var(--red); }
+  .status.yellow b { color: color-mix(in srgb, var(--yellow) 75%, var(--ink)); }
+
+  /* Overview */
+  .ov-hero { display: flex; align-items: stretch; margin: 18px 0 12px; overflow: hidden; }
+  .ov-streak { flex: 1; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 2px;
+    background: color-mix(in srgb, var(--green) 12%, var(--surface)); }
+  .ov-record { padding: 18px 20px 16px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end; border-left: 1px solid var(--line); }
+  .ov-big { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--green); font-variant-numeric: tabular-nums; }
+  .ov-mid { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ov-lbl { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .ov-tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tly { padding: 12px 12px 10px; display: flex; flex-direction: column; gap: 2px; border-top: 4px solid; }
+  .tly b { font-size: 28px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .tly span { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  .tly.st-green { border-top-color: var(--green); } .tly.st-green b { color: var(--green); }
+  .tly.st-yellow { border-top-color: var(--yellow); } .tly.st-yellow b { color: color-mix(in srgb, var(--yellow) 75%, var(--ink)); }
+  .tly.st-red { border-top-color: var(--red); } .tly.st-red b { color: var(--red); }
+  .ov-note { font-size: 13px; color: var(--ink-3); margin: 10px 2px 16px; }
+  .cal { padding: 12px 12px 14px; }
+  .cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cal-head h2 { flex: 1; text-align: center; margin: 0; font-size: 17px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .cal-dow span { text-align: center; font-size: 11px; font-weight: 600; color: var(--ink-3); padding-bottom: 2px; }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2);
+    font-weight: 600; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; padding: 0;
+  }
+  .cal-day.future { background: transparent; color: var(--ink-3); }
+  .cal-day.today { box-shadow: 0 0 0 2px var(--ink) inset; }
+  .cal-day.st-green  { background: var(--green);  border-color: transparent; color: #fff; }
+  .cal-day.st-yellow { background: var(--yellow); border-color: transparent; color: #2a2100; }
+  .cal-day.st-red    { background: var(--red);    border-color: transparent; color: #fff; }
+  .cal-foot { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 13px; color: var(--ink-2); align-items: center; }
+  .cal-foot .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+  .dot.st-green { background: var(--green); } .dot.st-yellow { background: var(--yellow); } .dot.st-red { background: var(--red); }
+  .cal-hint { color: var(--ink-3); margin-left: auto; font-size: 12px; }
+  @media (max-width: 520px) {
+    .ov-big { font-size: 46px; }
+    .tly b { font-size: 24px; }
+    .tly span { font-size: 11.5px; }
+    .seg button { padding: 6px 10px; }
+  }
+
+  /* Water */
+  .goal.water { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .wbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .wcustom { display: inline-flex; gap: 4px; }
+  .wcustom .input { width: 72px; padding: 4px 8px; font-size: 13px; }
+
+  /* Check-in */
+  .checkin { padding: 4px 0; }
+  .ci-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line); position: relative;
+  }
+  .ci-row:last-child { border-bottom: 0; }
+  .ci-row::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: transparent; }
+  .ci-row.ok::before { background: var(--green); }
+  .ci-row.miss::before { background: var(--red); }
+  .ci-name { font-weight: 550; }
+  .ci-name small { display: block; font-weight: 400; font-size: 12px; color: var(--ink-3); }
+  .ci-row.ok small { color: var(--green); }
+  .ci-row.miss small { color: var(--red); }
+  .ci-in { display: inline-flex; align-items: center; gap: 6px; }
+  .ci-in .input { width: 96px; text-align: right; padding: 7px 10px; }
+  .ci-in em { font-style: normal; color: var(--ink-3); font-size: 13px; min-width: 30px; }
+  .ci-sub { padding: 12px 16px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); border-bottom: 1px solid var(--line); }
+  .yn { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; flex: none; }
+  .yn button { border: 0; background: transparent; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 14px; color: var(--ink-2); }
+  .ci-row .yn button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .ci-row.ok .yn button[aria-pressed="true"] { background: var(--green); color: #fff; }
+  .ci-row.miss .yn button[aria-pressed="true"] { background: var(--red); color: #fff; }
+
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
   @media (max-width: 520px) {
@@ -315,12 +405,13 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand">Daily Planner</div>
+    <div class="brand">Live Hard</div>
     <div class="seg" role="group" aria-label="View">
       <button data-view="day">Day</button>
-      <button data-view="routine">Weekly routine</button>
+      <button data-view="routine">Routine</button>
+      <button data-view="overview">Overview</button>
     </div>
-    <button class="icon-btn" id="settingsBtn" aria-label="Buckets, goals and data">
+    <button class="icon-btn" id="settingsBtn" aria-label="Goals, check-in and data">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
     </button>
   </div>
@@ -360,7 +451,7 @@
 
 <dialog id="setDlg">
   <div class="dlg">
-    <div class="dlg-head"><h3>Buckets &amp; goals</h3><button class="x" id="closeSet" aria-label="Close">✕</button></div>
+    <div class="dlg-head"><h3>Goals &amp; check-in</h3><button class="x" id="closeSet" aria-label="Close">✕</button></div>
     <div class="dlg-body" id="setBody"></div>
     <div class="dlg-foot"><span class="spacer"></span><button class="btn primary" id="doneSet">Done</button></div>
   </div>
@@ -456,7 +547,48 @@
       routines,
       days: {},
       ui: { mode: 'list' },
+      tracking: defaultTracking(),
     };
+  }
+
+  // Water plus the end-of-day check-in. A metric's rule is 'min' (at least),
+  // 'max' (at most) or 'log' (just record it, not graded).
+  function defaultTracking() {
+    return {
+      v: 2,
+      water: { target: 100, unit: 'oz', quick: [8, 16, 24] },
+      metrics: [
+        { id: 'weight',   name: 'Morning weight', unit: 'lb',   rule: 'log', target: 0 },
+        { id: 'sleep',    name: 'Hours slept',    unit: 'h',    rule: 'min', target: 8 },
+        { id: 'calories', name: 'Calories',       unit: 'kcal', rule: 'max', target: 2500 },
+        { id: 'protein',  name: 'Protein',        unit: 'g',    rule: 'min', target: 180 },
+        { id: 'steps',    name: 'Steps',          unit: 'steps', rule: 'min', target: 10000 },
+      ],
+      checks: [
+        { id: 'nicotine', name: 'Nicotine',         want: 'no' },
+        { id: 'alcohol',  name: 'Alcohol',          want: 'no' },
+        { id: 'drugs',    name: 'Drugs',            want: 'no' },
+        { id: 'pic',      name: 'Progress pic',     want: 'yes' },
+      ],
+    };
+  }
+
+  // Fill in anything an older save or export is missing.
+  function normalize(s) {
+    s.ui = s.ui || { mode: 'list' };
+    for (let d = 0; d < 7; d++) s.routines[d] = s.routines[d] || [];
+    const def = defaultTracking();
+    s.tracking = s.tracking || def;
+    s.tracking.water = { ...def.water, ...s.tracking.water };
+    s.tracking.metrics = Array.isArray(s.tracking.metrics) ? s.tracking.metrics : def.metrics;
+    s.tracking.checks = Array.isArray(s.tracking.checks) ? s.tracking.checks : def.checks;
+    // One-time additions for saves made before a metric existed. Deleting it
+    // later sticks, because the version number moves past it.
+    if ((s.tracking.v || 1) < 2) {
+      if (!s.tracking.metrics.some(m => m.id === 'steps')) s.tracking.metrics.push({ ...def.metrics.find(m => m.id === 'steps'), since: todayKey() });
+      s.tracking.v = 2;
+    }
+    return s;
   }
 
   // ---------- storage ----------
@@ -478,11 +610,9 @@
     catch { if (!saveFailed) toast('Couldn’t save in this browser — use Export to keep a copy.'); saveFailed = true; }
   }
 
-  let state = load() || seed();
-  state.ui = state.ui || { mode: 'list' };
-  for (let d = 0; d < 7; d++) state.routines[d] = state.routines[d] || [];
+  let state = normalize(load() || seed());
 
-  const view = { tab: 'day', date: todayKey(), dow: new Date().getDay() };
+  const view = { tab: 'day', date: todayKey(), dow: new Date().getDay(), month: todayKey().slice(0, 7) };
 
   // ---------- model ----------
   const bucketOf = id => state.buckets.find(b => b.id === id);
@@ -494,9 +624,40 @@
     return state.routines[dateOf(k).getDay()].map(t => ({ ...t, done: false, notes: '' }));
   }
   function dayTasks(k) { return state.days[k]?.tasks ?? derive(k); }
+  // The stored record for a date: tasks (once edited), water log, check-in.
+  function dayRec(k) { return (state.days[k] = state.days[k] || {}); }
   function dayMut(k) {
-    if (!state.days[k]) state.days[k] = { tasks: derive(k) };
-    return state.days[k].tasks;
+    const r = dayRec(k);
+    if (!r.tasks) r.tasks = derive(k);
+    return r.tasks;
+  }
+  const waterTotal = k => (state.days[k]?.water || []).reduce((a, w) => a + w.v, 0);
+  const hasValue = v => v !== undefined && v !== null && v !== '' && !Number.isNaN(+v);
+  const metricOk = (m, v) => hasValue(v) && (m.rule === 'min' ? +v >= m.target : +v <= m.target);
+  const ruleText = m => m.rule === 'min' ? `≥ ${num(m.target)} ${m.unit}` : m.rule === 'max' ? `≤ ${num(m.target)} ${m.unit}` : '';
+  const num = v => (+v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+  // Everything the day is graded on: task goals, water, check-in metrics with a
+  // rule, and every yes/no. 0 short = green, 1-3 = yellow, 4+ = red.
+  function dayScore(k) {
+    const rec = state.days[k] || {}, tasks = dayTasks(k), tr = state.tracking;
+    const items = [];
+    for (const g of state.goals) if (g.target > 0) items.push({ name: g.name, ok: goalProgress(g, tasks).done >= g.target });
+    if (tr.water.target > 0) items.push({ name: 'Water', ok: waterTotal(k) >= tr.water.target });
+    // Something added to the check-in later only counts from the day it was
+    // added, so it can't retroactively turn old green days yellow.
+    const metrics = tr.metrics.filter(m => !m.since || k >= m.since);
+    const checks = tr.checks.filter(c => !c.since || k >= c.since);
+    for (const m of metrics) if (m.rule !== 'log') items.push({ name: m.name, ok: metricOk(m, rec.log?.[m.id]) });
+    for (const c of checks) items.push({ name: c.name, ok: rec.checks?.[c.id] === c.want });
+    const short = items.filter(i => !i.ok);
+    const answered = metrics.every(m => hasValue(rec.log?.[m.id])) && checks.every(c => rec.checks?.[c.id]);
+    const today = todayKey();
+    // Past days are graded once there's anything recorded; today only once the
+    // check-in is filled in, so it isn't red all morning.
+    const graded = k < today ? !!state.days[k] : k === today && answered;
+    const status = short.length === 0 ? 'green' : short.length <= 3 ? 'yellow' : 'red';
+    return { items, short, answered, graded, status };
   }
   // The list a context edits: a date, or a weekday routine.
   function listFor(ctx, mutate) {
@@ -527,7 +688,7 @@
 
   function render() {
     for (const b of document.querySelectorAll('[data-view]')) b.setAttribute('aria-pressed', String(b.dataset.view === view.tab));
-    app.innerHTML = view.tab === 'day' ? renderDay() : renderRoutine();
+    app.innerHTML = view.tab === 'day' ? renderDay() : view.tab === 'routine' ? renderRoutine() : renderOverview();
     if (view.tab === 'day' && state.ui.mode === 'timeline') scrollTimelineOnce();
   }
 
@@ -537,7 +698,7 @@
     const doneCount = tasks.filter(t => t.done).length;
     const rel = isToday ? 'Today' : k === addDays(todayKey(), -1) ? 'Yesterday' : k === addDays(todayKey(), 1) ? 'Tomorrow' : '';
     const title = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-    const edited = !!state.days[k];
+    const edited = !!state.days[k]?.tasks;
 
     return `
       <div class="datebar">
@@ -546,8 +707,9 @@
         ${isToday ? '' : '<button class="btn small" data-act="today">Today</button>'}
         <button class="icon-btn" data-act="next" aria-label="Next day">›</button>
       </div>
-      ${renderWeek(k)}
-      ${renderGoals(tasks, true)}
+      <div id="weekSlot">${renderWeek(k)}</div>
+      <div id="statusSlot">${renderStatus(k)}</div>
+      ${renderGoals(tasks, true, k)}
       <div class="sec-head">
         <h2>Schedule</h2>
         <div class="seg" role="group" aria-label="Layout">
@@ -562,7 +724,71 @@
       <div class="foot-actions">
         <button class="btn small" data-act="saveRoutine">Make this my ${DOW[d.getDay()]} routine</button>
         ${edited ? '<button class="btn small ghost" data-act="resetDay">Reset to routine</button>' : ''}
+      </div>
+      ${renderCheckin(k)}`;
+  }
+
+  const STATUS_LABEL = { green: 'Lived Hard', yellow: 'Complacent', red: 'Lived Soft' };
+  const STATUS_TITLE = { green: 'Day Lived Hard', yellow: 'Day Complacent', red: 'Day Lived Soft' };
+  function renderStatus(k) {
+    const sc = dayScore(k);
+    if (!sc.items.length) return '';
+    const shortList = sc.short.map(i => esc(i.name)).join(', ');
+    if (!sc.graded) {
+      if (k > todayKey()) return '';
+      return `<div class="status pending"><b>In progress</b><span>${sc.items.length - sc.short.length} of ${sc.items.length} hit so far · colored once the check-in is filled in</span></div>`;
+    }
+    return `<div class="status ${sc.status}"><b>${STATUS_TITLE[sc.status]}</b><span>${sc.short.length
+      ? `${sc.short.length} short: ${shortList}`
+      : `Every goal hit — all ${sc.items.length}.`}</span></div>`;
+  }
+
+  function renderCheckin(k) {
+    const tr = state.tracking, rec = state.days[k] || {};
+    if (!tr.metrics.length && !tr.checks.length) return '';
+    const prevW = lastWeightBefore(k);
+    const metrics = tr.metrics.map(m => {
+      const v = rec.log?.[m.id];
+      const cls = m.rule === 'log' || !hasValue(v) ? '' : metricOk(m, v) ? ' ok' : ' miss';
+      let hint = ruleText(m);
+      if (m.id === 'weight' && hasValue(v) && prevW) {
+        const d = +v - prevW.v;
+        hint = `${d > 0 ? '+' : ''}${num(d)} ${m.unit} since ${dateOf(prevW.k).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+      }
+      return `<label class="ci-row${cls}" data-mid="${esc(m.id)}">
+        <span class="ci-name">${esc(m.name)}<small data-role="hint">${esc(hint)}</small></span>
+        <span class="ci-in"><input class="input" type="number" inputmode="decimal" step="any" min="0" value="${hasValue(v) ? esc(v) : ''}" data-act="metric" aria-label="${esc(m.name)}"><em>${esc(m.unit)}</em></span>
+      </label>`;
+    }).join('');
+    const checks = tr.checks.map(c => {
+      const a = rec.checks?.[c.id];
+      const cls = !a ? '' : a === c.want ? ' ok' : ' miss';
+      return `<div class="ci-row${cls}" data-cid="${esc(c.id)}">
+        <span class="ci-name">${esc(c.name)}<small>Goal: ${c.want === 'yes' ? 'Yes' : 'No'}</small></span>
+        <span class="yn" role="group" aria-label="${esc(c.name)}">
+          <button data-act="yn" data-v="yes" aria-pressed="${a === 'yes'}">Yes</button>
+          <button data-act="yn" data-v="no" aria-pressed="${a === 'no'}">No</button>
+        </span>
       </div>`;
+    }).join('');
+    return `<div class="sec-head" style="margin-top:22px"><h2>End-of-day check-in</h2></div>
+      <section class="card checkin">
+        ${metrics}
+        ${checks ? `<div class="ci-sub">Today, did you…</div>${checks}` : ''}
+      </section>`;
+  }
+
+  function lastWeightBefore(k) {
+    const keys = Object.keys(state.days).filter(d => d < k && hasValue(state.days[d].log?.weight)).sort();
+    const d = keys.at(-1);
+    return d ? { k: d, v: +state.days[d].log.weight } : null;
+  }
+
+  // Refresh the week strip and grade without rebuilding the inputs being typed in.
+  function refreshSummary() {
+    const w = $('#weekSlot'), st = $('#statusSlot');
+    if (w) w.innerHTML = renderWeek(view.date);
+    if (st) st.innerHTML = renderStatus(view.date);
   }
 
   function renderWeek(k) {
@@ -574,14 +800,16 @@
       const dk = addDays(monday, i), dd = dateOf(dk);
       const ts = dayTasks(dk);
       const pct = ts.length ? Math.round(100 * ts.filter(t => t.done).length / ts.length) : 0;
-      html += `<button class="wd${dk === today ? ' today' : ''}" data-date="${dk}" ${dk === k ? 'aria-current="date"' : ''} aria-label="${esc(dd.toDateString())}, ${pct}% done">
+      const sc = dayScore(dk);
+      const st = sc.graded ? ` st-${sc.status}` : '';
+      html += `<button class="wd${dk === today ? ' today' : ''}${st}" data-date="${dk}" ${dk === k ? 'aria-current="date"' : ''} aria-label="${esc(dd.toDateString())}, ${pct}% done${sc.graded ? ', ' + STATUS_LABEL[sc.status] : ''}">
         ${DOW[dd.getDay()].slice(0, 3)}<b>${dd.getDate()}</b><span class="ring" style="--p:${pct}"></span></button>`;
     }
     return html + '</nav>';
   }
 
-  function renderGoals(tasks, withDone) {
-    if (!state.goals.length) {
+  function renderGoals(tasks, withDone, k) {
+    if (!state.goals.length && !k) {
       return `<section class="card goals"><div class="goals-head"><h2>Daily goals</h2></div>
         <p class="empty-note">No goals yet. <button class="btn small" data-act="settings">Add one</button></p></section>`;
     }
@@ -604,9 +832,27 @@
         <div class="hint">${esc(hint)}</div>
       </div>`;
     }).join('');
+    const water = k ? renderWater(k) : '';
     return `<section class="card goals">
       <div class="goals-head"><h2>${withDone ? 'Daily goals' : 'Planned vs goals'}</h2>${withDone ? `<span>${met} of ${state.goals.length} met</span>` : ''}</div>
-      <div class="goal-grid">${items}</div></section>`;
+      <div class="goal-grid">${items}</div>${water}</section>`;
+  }
+
+  function renderWater(k) {
+    const w = state.tracking.water, total = waterTotal(k);
+    const log = state.days[k]?.water || [];
+    const isMet = w.target > 0 && total >= w.target;
+    const last = log.at(-1);
+    return `<div class="goal water${isMet ? ' met' : ''}" style="--c:#2b8fd6">
+      <div class="row"><span class="name">Water</span><span class="val">${isMet ? '✓ ' : ''}${num(total)} / ${num(w.target)} ${esc(w.unit)}</span></div>
+      <div class="bar" role="img" aria-label="Water: ${num(total)} of ${num(w.target)} ${esc(w.unit)}"><i class="done" style="width:${clamp(100 * total / Math.max(1, w.target), 0, 100)}%"></i></div>
+      <div class="wbtns">
+        ${w.quick.map(q => `<button class="btn small" data-act="water" data-v="${q}">+${num(q)}</button>`).join('')}
+        <span class="wcustom"><input class="input" type="number" inputmode="decimal" min="0" step="any" placeholder="${esc(w.unit)}" aria-label="Other amount" id="waterCustom"><button class="btn small" data-act="waterCustom">Add</button></span>
+        ${last ? '<button class="btn small ghost" data-act="waterUndo">Undo</button>' : ''}
+      </div>
+      <div class="hint">${last ? `${log.length} drink${log.length === 1 ? '' : 's'} · last ${num(last.v)} ${esc(w.unit)} at ${fmtTime(Math.floor((last.t - dateOf(k).getTime()) / 60000))}` : 'Tap as you drink.'}</div>
+    </div>`;
   }
 
   function renderList(tasks, kind, isToday) {
@@ -730,6 +976,90 @@
   app.addEventListener('pointerup', endDrag);
   app.addEventListener('pointercancel', endDrag);
 
+  // ---------- overview ----------
+  // Every graded day, oldest first. Days are graded only once they have data,
+  // so the scan only needs the stored dates (plus today).
+  function gradedDays() {
+    const keys = new Set(Object.keys(state.days));
+    keys.add(todayKey());
+    return [...keys].sort().map(k => ({ k, sc: dayScore(k) })).filter(d => d.sc.graded);
+  }
+
+  function lifeStats() {
+    const days = gradedDays();
+    const tally = { green: 0, yellow: 0, red: 0 };
+    for (const d of days) tally[d.sc.status]++;
+    // Record: longest run of green days on consecutive calendar dates.
+    let best = 0, run = 0, prev = null;
+    for (const d of days) {
+      if (d.sc.status !== 'green') { run = 0; prev = null; continue; }
+      run = prev && addDays(prev, 1) === d.k ? run + 1 : 1;
+      prev = d.k;
+      best = Math.max(best, run);
+    }
+    // Current: count back from today. Today still in progress doesn't break it.
+    const status = new Map(days.map(d => [d.k, d.sc.status]));
+    let k = todayKey();
+    if (!status.has(k)) k = addDays(k, -1);
+    let current = 0;
+    while (status.get(k) === 'green') { current++; k = addDays(k, -1); }
+    return { tally, current, best, total: days.length };
+  }
+
+  function renderOverview() {
+    const { tally, current, best, total } = lifeStats();
+    const [y, m] = view.month.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const monthName = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const lead = (first.getDay() + 6) % 7; // Monday-first grid
+    const daysIn = new Date(y, m, 0).getDate();
+    const today = todayKey();
+    const mt = { green: 0, yellow: 0, red: 0 };
+    let cells = '';
+    for (let i = 0; i < lead; i++) cells += '<span class="cal-pad"></span>';
+    for (let d = 1; d <= daysIn; d++) {
+      const k = `${y}-${pad(m)}-${pad(d)}`;
+      const sc = k <= today ? dayScore(k) : null;
+      const st = sc?.graded ? sc.status : '';
+      if (st) mt[st]++;
+      const label = st ? STATUS_TITLE[st] : k > today ? 'Upcoming' : k === today ? 'In progress' : 'No record';
+      cells += `<button class="cal-day${st ? ' st-' + st : ''}${k === today ? ' today' : ''}${k > today ? ' future' : ''}" data-open="${k}" aria-label="${esc(dateOf(k).toDateString())}: ${label}">${d}</button>`;
+    }
+    const pct = total ? Math.round(100 * tally.green / total) : 0;
+    return `
+      <div class="ov-hero card">
+        <div class="ov-streak">
+          <span class="ov-big">${current}</span>
+          <span class="ov-lbl">Consecutive Days Lived Hard</span>
+        </div>
+        <div class="ov-record">
+          <span class="ov-mid">${best}</span>
+          <span class="ov-lbl">Record streak</span>
+        </div>
+      </div>
+      <div class="ov-tally">
+        <div class="card tly st-green"><b>${tally.green}</b><span>Days Lived Hard</span></div>
+        <div class="card tly st-yellow"><b>${tally.yellow}</b><span>Days Complacent</span></div>
+        <div class="card tly st-red"><b>${tally.red}</b><span>Days Lived Soft</span></div>
+      </div>
+      <p class="ov-note">${total ? `${pct}% of ${total} graded day${total === 1 ? '' : 's'} lived hard.` : 'No graded days yet — fill in a check-in to start the count.'}</p>
+      <section class="card cal">
+        <div class="cal-head">
+          <button class="icon-btn" data-act="prevMonth" aria-label="Previous month">‹</button>
+          <h2>${esc(monthName)}</h2>
+          <button class="icon-btn" data-act="nextMonth" aria-label="Next month">›</button>
+        </div>
+        <div class="cal-grid cal-dow">${WEEK_ORDER.map(d => `<span>${DOW[d][0]}</span>`).join('')}</div>
+        <div class="cal-grid">${cells}</div>
+        <div class="cal-foot">
+          <span><i class="dot st-green"></i>${mt.green} hard</span>
+          <span><i class="dot st-yellow"></i>${mt.yellow} complacent</span>
+          <span><i class="dot st-red"></i>${mt.red} soft</span>
+          <span class="cal-hint">this month · tap a day to open it</span>
+        </div>
+      </section>`;
+  }
+
   // ---------- routine view ----------
   function renderRoutine() {
     const dow = view.dow;
@@ -761,13 +1091,15 @@
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
     view.tab = b.dataset.view;
     if (view.tab === 'routine') view.dow = dateOf(view.date).getDay();
+    if (view.tab === 'overview') view.month = view.date.slice(0, 7);
     render();
     window.scrollTo({ top: 0 });
   }));
 
   app.addEventListener('click', e => {
-    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode]');
+    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode], [data-open]');
     if (!el || drag) return;
+    if (el.dataset.open) { view.date = el.dataset.open; view.tab = 'day'; render(); window.scrollTo({ top: 0 }); return; }
     if (el.dataset.date) { view.date = el.dataset.date; render(); return; }
     if (el.dataset.dow) { view.dow = +el.dataset.dow; render(); return; }
     if (el.dataset.mode) { state.ui.mode = el.dataset.mode; tlScrolled = null; commit(); return; }
@@ -776,9 +1108,38 @@
       case 'prev': view.date = addDays(view.date, -1); render(); break;
       case 'next': view.date = addDays(view.date, 1); render(); break;
       case 'today': view.date = todayKey(); render(); break;
+      case 'prevMonth': case 'nextMonth': {
+        const [y, m] = view.month.split('-').map(Number);
+        const d = new Date(y, m - 1 + (el.dataset.act === 'nextMonth' ? 1 : -1), 1);
+        view.month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+        render();
+        break;
+      }
       case 'add': openTask(currentCtx(), null); break;
       case 'edit': openTask(currentCtx(), id); break;
       case 'settings': openSettings(); break;
+      case 'water': case 'waterCustom': {
+        const v = el.dataset.act === 'water' ? +el.dataset.v : +$('#waterCustom').value;
+        if (!(v > 0)) { $('#waterCustom')?.focus(); break; }
+        const r = dayRec(view.date);
+        (r.water = r.water || []).push({ t: Date.now(), v });
+        commit();
+        break;
+      }
+      case 'waterUndo': {
+        const r = dayRec(view.date);
+        r.water?.pop();
+        commit();
+        break;
+      }
+      case 'yn': {
+        const r = dayRec(view.date), cid = el.closest('[data-cid]').dataset.cid;
+        r.checks = r.checks || {};
+        // Tapping the selected answer again clears it.
+        if (r.checks[cid] === el.dataset.v) delete r.checks[cid]; else r.checks[cid] = el.dataset.v;
+        commit();
+        break;
+      }
       case 'saveRoutine': {
         const dow = dateOf(view.date).getDay();
         const prev = state.routines[dow];
@@ -788,10 +1149,10 @@
         break;
       }
       case 'resetDay': {
-        const k = view.date, prev = state.days[k];
-        delete state.days[k];
+        const k = view.date, prev = state.days[k].tasks;
+        delete state.days[k].tasks;
         commit();
-        toast('Day reset to routine.', () => { state.days[k] = prev; commit(); });
+        toast('Schedule reset to routine.', () => { dayRec(k).tasks = prev; commit(); });
         break;
       }
       case 'clearRoutine': {
@@ -802,6 +1163,22 @@
         break;
       }
     }
+  });
+
+  app.addEventListener('input', e => {
+    const el = e.target;
+    if (el.dataset.act !== 'metric') return;
+    const row = el.closest('[data-mid]'), m = state.tracking.metrics.find(x => x.id === row.dataset.mid);
+    const r = dayRec(view.date);
+    r.log = r.log || {};
+    if (el.value === '') delete r.log[m.id]; else r.log[m.id] = +el.value;
+    row.classList.toggle('ok', m.rule !== 'log' && metricOk(m, r.log[m.id]));
+    row.classList.toggle('miss', m.rule !== 'log' && hasValue(r.log[m.id]) && !metricOk(m, r.log[m.id]));
+    persist();
+    refreshSummary();
+  });
+  app.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.id === 'waterCustom') $('[data-act="waterCustom"]').click();
   });
 
   app.addEventListener('change', e => {
@@ -945,6 +1322,50 @@
         ${goalsHtml}
         <button class="btn small" id="addGoal">+ Add goal</button>
       </section>
+      <section class="set-sec" id="trackSec">
+        <h4>Water</h4>
+        <p>Daily target, the unit, and the quick-add buttons (comma-separated).</p>
+        <div class="brow">
+          <input class="input num" type="number" min="0" step="any" value="${num(state.tracking.water.target).replace(/,/g, '')}" data-w="target" aria-label="Water target" style="width:90px;flex:none">
+          <input class="input" value="${esc(state.tracking.water.unit)}" data-w="unit" aria-label="Unit" style="width:70px;flex:none">
+          <input class="input" value="${esc(state.tracking.water.quick.join(', '))}" data-w="quick" aria-label="Quick-add amounts">
+        </div>
+      </section>
+      <section class="set-sec">
+        <h4>Check-in numbers</h4>
+        <p>“At least” and “at most” count toward the day's color. “Just log” records it without grading.</p>
+        ${state.tracking.metrics.map(m => `
+          <div class="grow" data-mid="${esc(m.id)}">
+            <div class="brow">
+              <input class="input" value="${esc(m.name)}" data-m="name" aria-label="Name">
+              <button class="x" data-del-metric aria-label="Delete ${esc(m.name)}">✕</button>
+            </div>
+            <div class="brow">
+              <select class="input" data-m="rule" aria-label="Rule">
+                <option value="min" ${m.rule === 'min' ? 'selected' : ''}>at least</option>
+                <option value="max" ${m.rule === 'max' ? 'selected' : ''}>at most</option>
+                <option value="log" ${m.rule === 'log' ? 'selected' : ''}>just log</option>
+              </select>
+              <input class="input num" type="number" min="0" step="any" value="${m.target}" data-m="target" aria-label="Target" ${m.rule === 'log' ? 'hidden' : ''}>
+              <input class="input" value="${esc(m.unit)}" data-m="unit" aria-label="Unit" style="width:70px;flex:none">
+            </div>
+          </div>`).join('')}
+        <button class="btn small" id="addMetric">+ Add number</button>
+      </section>
+      <section class="set-sec">
+        <h4>Yes / no questions</h4>
+        <p>The answer you want counts as hit; the other answer, or no answer, counts as short.</p>
+        ${state.tracking.checks.map(c => `
+          <div class="brow" data-cid="${esc(c.id)}">
+            <input class="input" value="${esc(c.name)}" data-c="name" aria-label="Question">
+            <select class="input" data-c="want" aria-label="Answer you want" style="width:auto;flex:none">
+              <option value="no" ${c.want === 'no' ? 'selected' : ''}>want No</option>
+              <option value="yes" ${c.want === 'yes' ? 'selected' : ''}>want Yes</option>
+            </select>
+            <button class="x" data-del-check aria-label="Delete ${esc(c.name)}">✕</button>
+          </div>`).join('')}
+        <button class="btn small" id="addCheck">+ Add question</button>
+      </section>
       <section class="set-sec">
         <h4>Your data</h4>
         <p>Everything lives in this browser only. Export a backup now and then, or to move it to another device.</p>
@@ -957,7 +1378,30 @@
   }
 
   setBody.addEventListener('input', e => {
-    const el = e.target, f = el.dataset.f;
+    const el = e.target, tr = state.tracking;
+    if (el.dataset.w) {
+      if (el.dataset.w === 'target') tr.water.target = Math.max(0, +el.value || 0);
+      if (el.dataset.w === 'unit') tr.water.unit = el.value.trim() || 'oz';
+      if (el.dataset.w === 'quick') {
+        const q = el.value.split(/[,\s]+/).map(Number).filter(n => n > 0);
+        if (q.length) tr.water.quick = q.slice(0, 5);
+      }
+      persist(); return;
+    }
+    if (el.dataset.m) {
+      const m = tr.metrics.find(x => x.id === el.closest('[data-mid]').dataset.mid);
+      if (el.dataset.m === 'name') m.name = el.value;
+      if (el.dataset.m === 'unit') m.unit = el.value;
+      if (el.dataset.m === 'target') m.target = Math.max(0, +el.value || 0);
+      if (el.dataset.m === 'rule') { m.rule = el.value; persist(); renderSettings(); return; }
+      persist(); return;
+    }
+    if (el.dataset.c) {
+      const c = tr.checks.find(x => x.id === el.closest('[data-cid]').dataset.cid);
+      c[el.dataset.c] = el.value;
+      persist(); return;
+    }
+    const f = el.dataset.f;
     const brow = el.closest('[data-bid]'), grow = el.closest('[data-gid]');
     if (brow) {
       const b = bucketOf(brow.dataset.bid);
@@ -1004,6 +1448,22 @@
       state.goals.push({ id: uid(), name: 'New goal', bucketIds: [], metric: 'minutes', target: 30 });
       persist(); renderSettings();
       [...setBody.querySelectorAll('[data-gid] [data-f="name"]')].at(-1)?.select();
+    } else if (t.closest('[data-del-metric]')) {
+      const id = t.closest('[data-mid]').dataset.mid;
+      state.tracking.metrics = state.tracking.metrics.filter(m => m.id !== id);
+      persist(); renderSettings();
+    } else if (t.closest('[data-del-check]')) {
+      const id = t.closest('[data-cid]').dataset.cid;
+      state.tracking.checks = state.tracking.checks.filter(c => c.id !== id);
+      persist(); renderSettings();
+    } else if (t.id === 'addMetric') {
+      state.tracking.metrics.push({ id: uid(), name: 'New number', unit: '', rule: 'min', target: 0, since: todayKey() });
+      persist(); renderSettings();
+      [...setBody.querySelectorAll('[data-mid] [data-m="name"]')].at(-1)?.select();
+    } else if (t.id === 'addCheck') {
+      state.tracking.checks.push({ id: uid(), name: 'New question', want: 'no', since: todayKey() });
+      persist(); renderSettings();
+      [...setBody.querySelectorAll('[data-cid] [data-c="name"]')].at(-1)?.select();
     } else if (t.id === 'exportBtn') {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `planner-${todayKey()}.json` });
@@ -1013,7 +1473,7 @@
       $('#importFile').click();
     } else if (t.id === 'wipeBtn') {
       if (confirm('Erase every day, routine, bucket and goal and go back to the starting routine?')) {
-        state = seed(); persist(); renderSettings(); render();
+        state = normalize(seed()); persist(); renderSettings(); render();
       }
     }
   });
@@ -1023,8 +1483,7 @@
     try {
       const s = JSON.parse(await file.text());
       if (!valid(s)) throw new Error('bad');
-      state = s; state.ui = state.ui || { mode: 'list' };
-      for (let d = 0; d < 7; d++) state.routines[d] = state.routines[d] || [];
+      state = normalize(s);
       persist(); renderSettings(); render();
       toast('Imported.');
     } catch { toast('That file isn’t a planner export.'); }
