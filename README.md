@@ -65,6 +65,27 @@ Scope is Sunday only — Thursday, Friday, Saturday and Monday games are filtere
 out, using US Eastern dates so Sunday night football counts and Monday night
 doesn't.
 
+## Daily Planner
+
+A separate little app lives in **`planner/index.html`** — a weekly routine you
+check off day by day. On GitHub Pages it's at
+`https://<your-github-username>.github.io/Picker/planner/`.
+
+- **Weekly routine.** Each weekday (Mon–Sun) has its own list of tasks with a
+  start time, a duration and a bucket. Every day starts from its weekday's
+  routine. "Copy from…" clones one day's routine into another.
+- **Days.** Check tasks off, add notes ("Leg day"), add one-off tasks, or move
+  and resize them — in the editor (with *push later tasks by the same amount*
+  for when the gym runs long) or by dragging on the Timeline. Edits to a day
+  stay on that date; "Make this my Tuesday routine" promotes them.
+- **Buckets and goals.** Buckets (Faith, Career, Diet, Indoor/Outside exercise…)
+  color the tasks. A goal adds up the *checked-off* tasks in one or more buckets,
+  as minutes or as a count — e.g. Exercise = 1h across both exercise buckets,
+  Meals = 4 Diet tasks. The goal bars show done over planned.
+
+Everything is stored in the browser's localStorage, per device. Use
+**Export / Import** (the sliders button) to back up or move to another device.
+
 ## Setup
 
 ### 1. The Worker (about five minutes, free, no card)
