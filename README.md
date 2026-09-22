@@ -83,6 +83,10 @@ check off day by day. On GitHub Pages it's at
   as minutes or as a count — e.g. Exercise = 1h across both exercise buckets,
   Meals = 4 Diet tasks. The goal bars show done over planned.
 
+- **Task metrics.** A task can track extra numbers, like pages read on the
+  Bible and Read tasks. Attach them in the task's editor ("Track additional
+  metric"); checking the task off asks for the number. A goal can total a task
+  metric (e.g. Reading = 25 pages a day), and counts toward the day's color.
 - **Water.** A water bar sits with the daily goals. Tap +8 / +16 / +24 (or type
   an amount) as you drink; Undo takes back the last one.
 - **End-of-day check-in.** Morning weight (just logged, with the change since
