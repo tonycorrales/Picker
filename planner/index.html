@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Planner</title>
+<meta name="description" content="A weekly routine you check off day by day, with buckets and daily goals.">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --surface-2: #f0eee8;
+    --line: #e2dfd6;
+    --ink: #1c1b18;
+    --ink-2: #5d5a52;
+    --ink-3: #8e8a7f;
+    --accent: #2f6f4f;
+    --accent-ink: #ffffff;
+    --danger: #b3261e;
+    --now: #d9480f;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151513;
+      --surface: #1e1e1b;
+      --surface-2: #262622;
+      --line: #34332e;
+      --ink: #eeece6;
+      --ink-2: #b4b0a5;
+      --ink-3: #85817a;
+      --accent: #5fb98a;
+      --accent-ink: #0d1a13;
+      --danger: #f2877f;
+      --now: #ff8a4c;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151513;
+    --surface: #1e1e1b;
+    --surface-2: #262622;
+    --line: #34332e;
+    --ink: #eeece6;
+    --ink-2: #b4b0a5;
+    --ink-3: #85817a;
+    --accent: #5fb98a;
+    --accent-ink: #0d1a13;
+    --danger: #f2877f;
+    --now: #ff8a4c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 80px; }
+
+  /* Header */
+  .top {
+    position: sticky; top: 0; z-index: 5;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 10px; padding-bottom: 10px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; margin-right: auto; }
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; }
+  .seg button {
+    border: 0; background: transparent; padding: 6px 12px; border-radius: 8px;
+    color: var(--ink-2); font-weight: 500; font-size: 14px;
+  }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .icon-btn {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+    width: 36px; height: 36px; display: grid; place-items: center; color: var(--ink-2);
+  }
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  /* Date nav */
+  .datebar { display: flex; align-items: center; gap: 8px; margin: 18px 0 12px; }
+  .datebar h1 { font-size: 22px; margin: 0; letter-spacing: -.02em; flex: 1; min-width: 0; }
+  .datebar h1 small { display: block; font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+  .btn {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+    padding: 7px 12px; font-size: 14px; font-weight: 500; color: var(--ink);
+  }
+  .btn:hover { border-color: var(--ink-3); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .btn.danger { color: var(--danger); }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+  .btn.small { padding: 4px 9px; font-size: 13px; }
+
+  /* Week strip */
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 16px; }
+  .wd {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 12px;
+    padding: 8px 0 6px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--ink-2);
+  }
+  .wd b { font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .wd[aria-current="date"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .wd.today b { color: var(--accent); }
+  .ring {
+    --p: 0; width: 18px; height: 18px; border-radius: 50%;
+    background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--surface-2) 0);
+    display: grid; place-items: center;
+  }
+  .ring::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--surface); }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+  .goals { padding: 14px 16px; margin-bottom: 16px; }
+  .goals-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .goals-head h2, .sec-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0; font-weight: 600; }
+  .goals-head span { font-size: 13px; color: var(--ink-2); }
+  .goal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
+  .goal .row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+  .goal .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .goal .val { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .goal.met .val { color: var(--accent); font-weight: 600; }
+  .bar { position: relative; height: 8px; border-radius: 99px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; }
+  .bar .plan { background: color-mix(in srgb, var(--c) 28%, transparent); }
+  .bar .done { background: var(--c); }
+  .goal .hint { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+  .empty-note { color: var(--ink-3); font-size: 14px; }
+
+  /* Section header */
+  .sec-head { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; flex-wrap: wrap; }
+  .sec-head h2 { margin-right: auto; }
+
+  /* Task list */
+  .tasks { list-style: none; margin: 0; padding: 0; }
+  .task {
+    display: grid; grid-template-columns: 40px 76px 1fr; align-items: center;
+    border-bottom: 1px solid var(--line); min-height: 52px;
+    position: relative;
+  }
+  .task:last-child { border-bottom: 0; }
+  .task::before {
+    content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--c, var(--line));
+  }
+  .task.now { background: color-mix(in srgb, var(--now) 7%, transparent); }
+  .task.now .time { color: var(--now); }
+  .check { display: grid; place-items: center; height: 100%; cursor: pointer; }
+  .check input {
+    appearance: none; width: 22px; height: 22px; border-radius: 7px; margin: 0;
+    border: 2px solid var(--ink-3); display: grid; place-items: center; cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .check input:checked { background: var(--c, var(--accent)); border-color: var(--c, var(--accent)); }
+  .check input:checked::after {
+    content: ""; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0;
+    transform: translateY(-1px) rotate(45deg);
+  }
+  .check input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .time { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); line-height: 1.25; }
+  .time span { display: block; color: var(--ink-3); font-size: 12px; }
+  .tbody {
+    padding: 9px 12px 9px 0; cursor: pointer; min-width: 0; border: 0; background: none; text-align: left;
+  }
+  .tbody .title { display: block; font-weight: 550; overflow-wrap: anywhere; }
+  .task.done .title { color: var(--ink-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink-3) 60%, transparent); }
+  .meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 3px; font-size: 12px; color: var(--ink-3); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500;
+    padding: 1px 8px 1px 6px; border-radius: 99px; color: var(--ink-2);
+    background: color-mix(in srgb, var(--c, var(--ink-3)) 14%, transparent);
+  }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--ink-3)); }
+  .note-prev { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; font-style: italic; }
+  .task.routine { grid-template-columns: 16px 76px 1fr; }
+
+  .add-row { padding: 10px; display: flex; gap: 8px; border-top: 1px solid var(--line); }
+  .add-row .btn { flex: 1; }
+
+  .foot-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .banner {
+    font-size: 13px; color: var(--ink-2); background: var(--surface-2); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .banner span { flex: 1; min-width: 200px; }
+
+  /* Timeline */
+  .tl { position: relative; margin-left: 52px; margin-right: 8px; }
+  .tl-hour { position: absolute; left: -52px; right: 0; border-top: 1px solid var(--line); }
+  .tl-hour span { position: absolute; top: -8px; left: 0; width: 44px; text-align: right; font-size: 11px; color: var(--ink-3); background: var(--surface); padding-right: 4px; }
+  .tl-now { position: absolute; left: -6px; right: 0; border-top: 2px solid var(--now); z-index: 3; pointer-events: none; }
+  .tl-now::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--now); }
+  .blk {
+    position: absolute; border-radius: 7px; overflow: hidden; z-index: 1;
+    background: color-mix(in srgb, var(--c, var(--ink-3)) 16%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--c, var(--ink-3)) 45%, transparent);
+    border-left: 4px solid var(--c, var(--ink-3));
+    display: flex; align-items: flex-start; gap: 4px; padding: 0 4px 0 0;
+    font-size: 12px; line-height: 1.2; user-select: none; -webkit-user-select: none;
+  }
+  .blk.done { opacity: .55; }
+  .blk.dragging { z-index: 4; box-shadow: 0 6px 20px rgba(0,0,0,.2); opacity: .95; }
+  .blk .grip {
+    flex: none; width: 22px; align-self: stretch; cursor: grab; touch-action: none;
+    display: grid; place-items: center; color: var(--ink-3);
+  }
+  .blk .grip svg { width: 12px; height: 12px; }
+  .blk .bcheck { flex: none; display: grid; place-items: center; padding-top: 3px; }
+  .blk .bcheck input { width: 15px; height: 15px; margin: 0; accent-color: var(--c, var(--accent)); }
+  .blk .btxt { flex: 1; min-width: 0; padding-top: 3px; cursor: pointer; overflow: hidden; }
+  .blk .btxt b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .blk .btxt em { font-style: normal; color: var(--ink-2); white-space: nowrap; }
+  .blk.tiny { align-items: center; }
+  .blk.tiny .btxt, .blk.tiny .bcheck { padding-top: 0; }
+  .blk.tiny .btxt { display: flex; gap: 6px; }
+  .blk .resize {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 9px; cursor: ns-resize; touch-action: none;
+  }
+  .blk .resize::after {
+    content: ""; position: absolute; left: 50%; bottom: 3px; width: 22px; height: 3px; margin-left: -11px;
+    border-radius: 2px; background: color-mix(in srgb, var(--c, var(--ink-3)) 60%, transparent);
+  }
+  .tl-card { padding: 16px 0 16px 0; }
+  .tl-tip { font-size: 12px; color: var(--ink-3); margin: 0 0 10px; }
+
+  /* Routine day tabs */
+  .daytabs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 18px 0 14px; }
+  .daytabs button {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 0;
+    font-weight: 600; font-size: 13px; color: var(--ink-2);
+  }
+  .daytabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+  /* Dialogs */
+  dialog {
+    border: 0; border-radius: 16px; padding: 0; width: min(520px, calc(100vw - 24px));
+    background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    max-height: calc(100dvh - 24px);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .dlg { display: flex; flex-direction: column; max-height: calc(100dvh - 24px); }
+  .dlg-head { padding: 16px 18px 6px; display: flex; align-items: center; gap: 8px; }
+  .dlg-head h3 { margin: 0; font-size: 17px; flex: 1; }
+  .dlg-body { padding: 8px 18px 12px; overflow-y: auto; }
+  .dlg-foot { padding: 12px 18px 16px; display: flex; gap: 8px; border-top: 1px solid var(--line); }
+  .dlg-foot .spacer { flex: 1; }
+  .field { display: block; margin-bottom: 12px; }
+  .field > span { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
+  .input {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px;
+    background: var(--bg);
+  }
+  .input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: -1px; }
+  textarea.input { min-height: 84px; resize: vertical; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .nudges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .nudges button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 3px 8px; font-size: 12px; color: var(--ink-2); }
+  .checkline { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; margin-bottom: 10px; }
+  .checkline input { margin-top: 3px; accent-color: var(--accent); }
+  .checkline small { display: block; color: var(--ink-3); font-size: 12px; }
+  .ends { font-size: 12px; color: var(--ink-3); margin-top: -6px; margin-bottom: 12px; }
+
+  .set-sec { margin-bottom: 22px; }
+  .set-sec h4 { margin: 0 0 4px; font-size: 14px; }
+  .set-sec p { margin: 0 0 10px; font-size: 13px; color: var(--ink-3); }
+  .brow { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .brow input[type="color"] { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 9px; padding: 2px; background: var(--bg); flex: none; }
+  .brow .input { flex: 1; min-width: 0; }
+  .grow { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+  .grow .brow { margin-bottom: 8px; }
+  .grow .input.num { width: 90px; flex: none; }
+  .grow select.input { width: auto; flex: none; }
+  .bpick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bpick label { display: inline-flex; }
+  .bpick input { position: absolute; opacity: 0; pointer-events: none; }
+  .bpick .chip { cursor: pointer; border: 1px solid transparent; opacity: .55; }
+  .bpick input:checked + .chip { opacity: 1; border-color: var(--c); }
+  .bpick input:focus-visible + .chip { outline: 2px solid var(--accent); }
+  .x { border: 0; background: transparent; color: var(--ink-3); width: 32px; height: 32px; border-radius: 8px; flex: none; }
+  .x:hover { color: var(--danger); background: var(--surface-2); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--bg); padding: 9px 14px; border-radius: 10px; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; max-width: calc(100vw - 32px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%); pointer-events: auto; }
+  .toast button { background: none; border: 0; color: inherit; font-weight: 700; margin-left: 10px; text-decoration: underline; }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  @media (max-width: 520px) {
+    .brand { display: none; }
+    .top .wrap { justify-content: space-between; }
+    .seg { margin-right: auto; }
+    .task { grid-template-columns: 40px 64px 1fr; }
+    .task.routine { grid-template-columns: 12px 64px 1fr; }
+    .datebar h1 { font-size: 19px; }
+    .wd { padding: 6px 0 5px; font-size: 11px; }
+    .two { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">Daily Planner</div>
+    <div class="seg" role="group" aria-label="View">
+      <button data-view="day">Day</button>
+      <button data-view="routine">Weekly routine</button>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Buckets, goals and data">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<dialog id="taskDlg">
+  <form class="dlg" method="dialog" id="taskForm">
+    <div class="dlg-head"><h3 id="taskDlgTitle">Task</h3></div>
+    <div class="dlg-body">
+      <label class="field"><span>Task</span><input class="input" name="title" required autocomplete="off" placeholder="e.g. Gym"></label>
+      <label class="field"><span>Bucket</span><select class="input" name="bucket"></select></label>
+      <div class="two">
+        <label class="field"><span>Start</span><input class="input" type="time" name="start" required step="300">
+          <div class="nudges"><button type="button" data-nudge="start:-15">−15m</button><button type="button" data-nudge="start:15">+15m</button><button type="button" data-nudge="start:60">+1h</button></div>
+        </label>
+        <label class="field"><span>Duration (minutes)</span><input class="input" type="number" name="dur" min="0" max="1440" step="5" required>
+          <div class="nudges"><button type="button" data-nudge="dur:-15">−15m</button><button type="button" data-nudge="dur:15">+15m</button><button type="button" data-nudge="dur:30">+30m</button></div>
+        </label>
+      </div>
+      <div class="ends" id="endsAt"></div>
+      <label class="checkline" id="shiftLine"><input type="checkbox" name="shift"><span>Push later tasks by the same amount<small>If this runs longer or starts later, everything after it slides back too.</small></span></label>
+      <div id="dayOnly">
+        <label class="checkline"><input type="checkbox" name="done"><span>Completed</span></label>
+        <label class="field"><span>Notes</span><textarea class="input" name="notes" placeholder="What did you do? e.g. Leg day — squats 5×5"></textarea></label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn danger" id="delTask">Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" value="cancel" id="cancelTask">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="setDlg">
+  <div class="dlg">
+    <div class="dlg-head"><h3>Buckets &amp; goals</h3><button class="x" id="closeSet" aria-label="Close">✕</button></div>
+    <div class="dlg-body" id="setBody"></div>
+    <div class="dlg-foot"><span class="spacer"></span><button class="btn primary" id="doneSet">Done</button></div>
+  </div>
+</dialog>
+
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- helpers ----------
+  const $ = (s, r = document) => r.querySelector(s);
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad = n => String(n).padStart(2, '0');
+  const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+  const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const dateOf = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (k, n) => { const d = dateOf(k); d.setDate(d.getDate() + n); return keyOf(d); };
+  const todayKey = () => keyOf(new Date());
+  const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const fmtTime = m => {
+    m = ((m % 1440) + 1440) % 1440;
+    let h = Math.floor(m / 60); const mm = m % 60; const ap = h < 12 ? 'am' : 'pm';
+    h = h % 12 || 12;
+    return `${h}:${pad(mm)} ${ap}`;
+  };
+  const fmtDur = m => {
+    m = Math.round(m);
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60), r = m % 60;
+    return r ? `${h}h ${r}m` : `${h}h`;
+  };
+  const toHHMM = m => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
+  const fromHHMM = s => { const [h, m] = String(s).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  const byStart = (a, b) => a.start - b.start;
+
+  // ---------- starting data ----------
+  // Monday exactly as described; durations run to the next task except the gym,
+  // which is a two-hour block.
+  const MONDAY = [
+    ['Wake by 6am',   '06:00',  10, 'selfcare'],
+    ['Bible verse',   '06:10',  15, 'faith'],
+    ['Brush teeth',   '06:25',   5, 'selfcare'],
+    ['Breakfast',     '06:30',  25, 'diet'],
+    ['Walk',          '06:55',  35, 'outdoor'],
+    ['Mobility',      '07:30',  20, 'indoor'],
+    ['Rinse',         '07:50',  25, 'selfcare'],
+    ['Work window 1', '08:15', 105, 'career'],
+    ['Brunch',        '10:00',  30, 'diet'],
+    ['Supplements',   '10:30',  15, 'selfcare'],
+    ['Gym',           '10:45', 120, 'indoor'],
+    ['Shake',         '13:00',  30, 'diet'],
+    ['Shower',        '13:30',  30, 'selfcare'],
+    ['Work window 2', '14:00', 120, 'career'],
+    ['Lunch',         '16:00',  45, 'diet'],
+    ['Jog with dog',  '16:45',  45, 'outdoor'],
+    ['Shower',        '17:30',  30, 'selfcare'],
+    ['Work window 3', '18:00',  90, 'career'],
+    ['Dinner',        '19:30',  45, 'diet'],
+    ['Bible & pray',  '20:15',  30, 'faith'],
+    ['Brush',         '20:45',  15, 'selfcare'],
+    ['Read',          '21:00',  30, 'growth'],
+    ['Bed',           '21:30',  30, 'selfcare'],
+  ];
+
+  function seed() {
+    const routines = {};
+    for (let d = 0; d < 7; d++) {
+      routines[d] = MONDAY.map(([title, start, dur, bucketId]) => ({ id: uid(), title, start: fromHHMM(start), dur, bucketId }));
+    }
+    return {
+      version: 1,
+      buckets: [
+        { id: 'faith',    name: 'Faith',            color: '#7c5cd6' },
+        { id: 'career',   name: 'Career',           color: '#2f6fd6' },
+        { id: 'diet',     name: 'Diet',             color: '#2e9d57' },
+        { id: 'indoor',   name: 'Indoor exercise',  color: '#d64545' },
+        { id: 'outdoor',  name: 'Outside exercise', color: '#e07a1f' },
+        { id: 'selfcare', name: 'Self-care',        color: '#1b9aaa' },
+        { id: 'growth',   name: 'Growth',           color: '#b8911a' },
+      ],
+      goals: [
+        { id: uid(), name: 'Faith',    bucketIds: ['faith'],             metric: 'minutes', target: 30 },
+        { id: uid(), name: 'Career',   bucketIds: ['career'],            metric: 'minutes', target: 240 },
+        { id: uid(), name: 'Exercise', bucketIds: ['indoor', 'outdoor'], metric: 'minutes', target: 60 },
+        { id: uid(), name: 'Meals',    bucketIds: ['diet'],              metric: 'count',   target: 4 },
+      ],
+      routines,
+      days: {},
+      ui: { mode: 'list' },
+    };
+  }
+
+  // ---------- storage ----------
+  const STORE = 'daily-planner.v1';
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      return valid(s) ? s : null;
+    } catch { return null; }
+  }
+  function valid(s) {
+    return s && Array.isArray(s.buckets) && Array.isArray(s.goals) && s.routines && typeof s.routines === 'object' && s.days && typeof s.days === 'object';
+  }
+  let saveFailed = false;
+  function persist() {
+    try { localStorage.setItem(STORE, JSON.stringify(state)); saveFailed = false; }
+    catch { if (!saveFailed) toast('Couldn’t save in this browser — use Export to keep a copy.'); saveFailed = true; }
+  }
+
+  let state = load() || seed();
+  state.ui = state.ui || { mode: 'list' };
+  for (let d = 0; d < 7; d++) state.routines[d] = state.routines[d] || [];
+
+  const view = { tab: 'day', date: todayKey(), dow: new Date().getDay() };
+
+  // ---------- model ----------
+  const bucketOf = id => state.buckets.find(b => b.id === id);
+  const colorOf = id => bucketOf(id)?.color || '';
+
+  // A day nobody has touched is just a live view of that weekday's routine, so
+  // editing the routine updates it. The first check, note or edit freezes a copy.
+  function derive(k) {
+    return state.routines[dateOf(k).getDay()].map(t => ({ ...t, done: false, notes: '' }));
+  }
+  function dayTasks(k) { return state.days[k]?.tasks ?? derive(k); }
+  function dayMut(k) {
+    if (!state.days[k]) state.days[k] = { tasks: derive(k) };
+    return state.days[k].tasks;
+  }
+  // The list a context edits: a date, or a weekday routine.
+  function listFor(ctx, mutate) {
+    if (ctx.kind === 'routine') return state.routines[ctx.dow];
+    return mutate ? dayMut(ctx.key) : dayTasks(ctx.key);
+  }
+  function currentCtx() {
+    return view.tab === 'routine' ? { kind: 'routine', dow: view.dow } : { kind: 'day', key: view.date };
+  }
+  function commit() { persist(); render(); }
+
+  function goalProgress(goal, tasks) {
+    const ids = new Set(goal.bucketIds);
+    let done = 0, plan = 0;
+    for (const t of tasks) {
+      if (!ids.has(t.bucketId)) continue;
+      const v = goal.metric === 'count' ? 1 : t.dur;
+      plan += v;
+      if (t.done) done += v;
+    }
+    return { done, plan };
+  }
+  const goalFmt = (g, v) => g.metric === 'count' ? String(v) : fmtDur(v);
+  const goalColor = g => colorOf(g.bucketIds[0]) || 'var(--accent)';
+
+  // ---------- render ----------
+  const app = $('#app');
+
+  function render() {
+    for (const b of document.querySelectorAll('[data-view]')) b.setAttribute('aria-pressed', String(b.dataset.view === view.tab));
+    app.innerHTML = view.tab === 'day' ? renderDay() : renderRoutine();
+    if (view.tab === 'day' && state.ui.mode === 'timeline') scrollTimelineOnce();
+  }
+
+  function renderDay() {
+    const k = view.date, d = dateOf(k), isToday = k === todayKey();
+    const tasks = dayTasks(k).slice().sort(byStart);
+    const doneCount = tasks.filter(t => t.done).length;
+    const rel = isToday ? 'Today' : k === addDays(todayKey(), -1) ? 'Yesterday' : k === addDays(todayKey(), 1) ? 'Tomorrow' : '';
+    const title = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    const edited = !!state.days[k];
+
+    return `
+      <div class="datebar">
+        <button class="icon-btn" data-act="prev" aria-label="Previous day">‹</button>
+        <h1>${esc(title)}<small>${rel ? esc(rel) + ' · ' : ''}${doneCount} of ${tasks.length} done</small></h1>
+        ${isToday ? '' : '<button class="btn small" data-act="today">Today</button>'}
+        <button class="icon-btn" data-act="next" aria-label="Next day">›</button>
+      </div>
+      ${renderWeek(k)}
+      ${renderGoals(tasks, true)}
+      <div class="sec-head">
+        <h2>Schedule</h2>
+        <div class="seg" role="group" aria-label="Layout">
+          <button data-mode="list" aria-pressed="${state.ui.mode !== 'timeline'}">List</button>
+          <button data-mode="timeline" aria-pressed="${state.ui.mode === 'timeline'}">Timeline</button>
+        </div>
+      </div>
+      <div class="card">
+        ${state.ui.mode === 'timeline' ? renderTimeline(tasks, isToday) : renderList(tasks, 'day', isToday)}
+        <div class="add-row"><button class="btn" data-act="add">+ Add task</button></div>
+      </div>
+      <div class="foot-actions">
+        <button class="btn small" data-act="saveRoutine">Make this my ${DOW[d.getDay()]} routine</button>
+        ${edited ? '<button class="btn small ghost" data-act="resetDay">Reset to routine</button>' : ''}
+      </div>`;
+  }
+
+  function renderWeek(k) {
+    const d = dateOf(k);
+    const monday = addDays(k, -((d.getDay() + 6) % 7));
+    const today = todayKey();
+    let html = '<nav class="week" aria-label="This week">';
+    for (let i = 0; i < 7; i++) {
+      const dk = addDays(monday, i), dd = dateOf(dk);
+      const ts = dayTasks(dk);
+      const pct = ts.length ? Math.round(100 * ts.filter(t => t.done).length / ts.length) : 0;
+      html += `<button class="wd${dk === today ? ' today' : ''}" data-date="${dk}" ${dk === k ? 'aria-current="date"' : ''} aria-label="${esc(dd.toDateString())}, ${pct}% done">
+        ${DOW[dd.getDay()].slice(0, 3)}<b>${dd.getDate()}</b><span class="ring" style="--p:${pct}"></span></button>`;
+    }
+    return html + '</nav>';
+  }
+
+  function renderGoals(tasks, withDone) {
+    if (!state.goals.length) {
+      return `<section class="card goals"><div class="goals-head"><h2>Daily goals</h2></div>
+        <p class="empty-note">No goals yet. <button class="btn small" data-act="settings">Add one</button></p></section>`;
+    }
+    let met = 0;
+    const items = state.goals.map(g => {
+      const { done, plan } = goalProgress(g, tasks);
+      const tgt = Math.max(1, g.target);
+      const isMet = withDone && done >= g.target;
+      if (isMet) met++;
+      const shown = withDone ? done : plan;
+      const hint = withDone
+        ? (plan < g.target ? `Only ${goalFmt(g, plan)} planned` : `${goalFmt(g, plan)} planned`)
+        : (plan < g.target ? `${goalFmt(g, g.target - plan)} short` : 'Covered');
+      return `<div class="goal${isMet ? ' met' : ''}" style="--c:${esc(goalColor(g))}">
+        <div class="row"><span class="name">${esc(g.name)}</span><span class="val">${isMet ? '✓ ' : ''}${goalFmt(g, shown)} / ${goalFmt(g, g.target)}</span></div>
+        <div class="bar" role="img" aria-label="${esc(g.name)}: ${goalFmt(g, shown)} of ${goalFmt(g, g.target)}">
+          <i class="plan" style="width:${clamp(100 * plan / tgt, 0, 100)}%"></i>
+          ${withDone ? `<i class="done" style="width:${clamp(100 * done / tgt, 0, 100)}%"></i>` : ''}
+        </div>
+        <div class="hint">${esc(hint)}</div>
+      </div>`;
+    }).join('');
+    return `<section class="card goals">
+      <div class="goals-head"><h2>${withDone ? 'Daily goals' : 'Planned vs goals'}</h2>${withDone ? `<span>${met} of ${state.goals.length} met</span>` : ''}</div>
+      <div class="goal-grid">${items}</div></section>`;
+  }
+
+  function renderList(tasks, kind, isToday) {
+    if (!tasks.length) return '<p class="empty-note" style="padding:18px 16px;margin:0">Nothing planned yet.</p>';
+    const now = isToday ? nowMin() : -1;
+    return '<ul class="tasks">' + tasks.map(t => {
+      const b = bucketOf(t.bucketId);
+      const c = b ? `--c:${esc(b.color)}` : '';
+      const isNow = now >= t.start && now < t.start + Math.max(t.dur, 1);
+      const meta = [
+        b ? `<span class="chip">${esc(b.name)}</span>` : '',
+        kind === 'day' && t.notes ? `<span class="note-prev">${esc(t.notes.split('\n')[0])}</span>` : '',
+      ].join('');
+      return `<li class="task${kind === 'routine' ? ' routine' : ''}${t.done ? ' done' : ''}${isNow ? ' now' : ''}" style="${c}" data-id="${esc(t.id)}">
+        ${kind === 'day'
+          ? `<label class="check"><input type="checkbox" data-act="toggle" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.title)} done"></label>`
+          : '<span></span>'}
+        <div class="time">${fmtTime(t.start)}<span>${fmtDur(t.dur)}</span></div>
+        <button class="tbody" data-act="edit"><span class="title">${esc(t.title)}</span>${meta ? `<span class="meta">${meta}</span>` : ''}</button>
+      </li>`;
+    }).join('') + '</ul>';
+  }
+
+  // ---------- timeline ----------
+  const PX = 1.5; // pixels per minute
+  let tlScrolled = null;
+
+  function layoutColumns(tasks) {
+    // Greedy column packing inside each cluster of overlapping tasks.
+    const out = new Map();
+    let cluster = [], cols = [], clusterEnd = -1;
+    const flush = () => { for (const t of cluster) out.get(t.id).n = cols.length; cluster = []; cols = []; };
+    for (const t of tasks) {
+      const end = t.start + Math.max(t.dur, 10);
+      if (t.start >= clusterEnd && cluster.length) flush();
+      let col = cols.findIndex(e => e <= t.start);
+      if (col < 0) { col = cols.length; cols.push(end); } else cols[col] = end;
+      out.set(t.id, { col, n: 1 });
+      cluster.push(t);
+      clusterEnd = Math.max(clusterEnd, end);
+    }
+    if (cluster.length) flush();
+    return out;
+  }
+
+  function renderTimeline(tasks, isToday) {
+    const lo = Math.floor(Math.min(300, ...tasks.map(t => t.start)) / 60) * 60;
+    const hi = Math.ceil(Math.max(1380, ...tasks.map(t => t.start + t.dur)) / 60) * 60;
+    const lay = layoutColumns(tasks);
+    let html = `<div class="tl-card"><p class="tl-tip" style="padding:0 16px">Drag the ⋮⋮ handle to move a task, the bottom edge to change its length. Tap a task to edit.</p>
+      <div class="tl" id="tl" data-lo="${lo}" style="height:${(hi - lo) * PX}px">`;
+    for (let m = lo; m <= hi; m += 60) {
+      html += `<div class="tl-hour" style="top:${(m - lo) * PX}px"><span>${fmtTime(m).replace(':00', '')}</span></div>`;
+    }
+    if (isToday) {
+      const n = nowMin();
+      if (n >= lo && n <= hi) html += `<div class="tl-now" style="top:${(n - lo) * PX}px"></div>`;
+    }
+    for (const t of tasks) {
+      const b = bucketOf(t.bucketId);
+      const { col, n } = lay.get(t.id);
+      const h = Math.max(t.dur * PX, 16);
+      const tiny = h < 34;
+      html += `<div class="blk${t.done ? ' done' : ''}${tiny ? ' tiny' : ''}" data-id="${esc(t.id)}"
+        style="top:${(t.start - lo) * PX}px;height:${h}px;left:calc(${(100 * col / n).toFixed(3)}% + 2px);width:calc(${(100 / n).toFixed(3)}% - 4px);${b ? `--c:${esc(b.color)}` : ''}">
+        <span class="grip" data-drag="move" aria-hidden="true"><svg viewBox="0 0 12 12" fill="currentColor"><circle cx="4" cy="2.5" r="1.1"/><circle cx="8" cy="2.5" r="1.1"/><circle cx="4" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="4" cy="9.5" r="1.1"/><circle cx="8" cy="9.5" r="1.1"/></svg></span>
+        <label class="bcheck"><input type="checkbox" data-act="toggle" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.title)} done"></label>
+        <span class="btxt" data-act="edit"><b>${esc(t.title)}</b><em data-role="when">${fmtTime(t.start)} · ${fmtDur(t.dur)}</em></span>
+        ${h >= 24 ? '<span class="resize" data-drag="resize" aria-hidden="true"></span>' : ''}
+      </div>`;
+    }
+    return html + '</div></div>';
+  }
+
+  function scrollTimelineOnce() {
+    // Bring "now" (or the first task) into view once per date, not on every re-render.
+    if (tlScrolled === view.date) return;
+    tlScrolled = view.date;
+    const tl = $('#tl'); if (!tl) return;
+    const lo = +tl.dataset.lo;
+    const tasks = dayTasks(view.date);
+    const target = view.date === todayKey() ? nowMin() - 60 : Math.min(...tasks.map(t => t.start), 360);
+    const y = tl.getBoundingClientRect().top + window.scrollY + (target - lo) * PX - 120;
+    if (y > window.scrollY) window.scrollTo({ top: y });
+  }
+
+  let drag = null;
+  app.addEventListener('pointerdown', e => {
+    const h = e.target.closest('[data-drag]');
+    if (!h) return;
+    const el = h.closest('.blk');
+    const t = dayTasks(view.date).find(x => x.id === el.dataset.id);
+    if (!t) return;
+    e.preventDefault();
+    h.setPointerCapture(e.pointerId);
+    drag = { kind: h.dataset.drag, el, id: t.id, y0: e.clientY, start: t.start, dur: t.dur, nStart: t.start, nDur: t.dur };
+    el.classList.add('dragging');
+  });
+  app.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dm = Math.round((e.clientY - drag.y0) / PX / 5) * 5;
+    const lo = +$('#tl').dataset.lo;
+    if (drag.kind === 'move') {
+      drag.nStart = clamp(drag.start + dm, 0, 1440 - 5);
+      drag.el.style.top = `${(drag.nStart - lo) * PX}px`;
+    } else {
+      drag.nDur = clamp(drag.dur + dm, 5, 1440);
+      drag.el.style.height = `${Math.max(drag.nDur * PX, 16)}px`;
+    }
+    const w = drag.el.querySelector('[data-role="when"]');
+    if (w) w.textContent = `${fmtTime(drag.nStart)} · ${fmtDur(drag.nDur)}`;
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.nStart === d.start && d.nDur === d.dur) { d.el.classList.remove('dragging'); return; }
+    const t = dayMut(view.date).find(x => x.id === d.id);
+    if (t) { t.start = d.nStart; t.dur = d.nDur; dayMut(view.date).sort(byStart); }
+    commit();
+  };
+  app.addEventListener('pointerup', endDrag);
+  app.addEventListener('pointercancel', endDrag);
+
+  // ---------- routine view ----------
+  function renderRoutine() {
+    const dow = view.dow;
+    const tasks = state.routines[dow].slice().sort(byStart);
+    const others = WEEK_ORDER.filter(d => d !== dow);
+    return `
+      <div class="daytabs" role="group" aria-label="Weekday">
+        ${WEEK_ORDER.map(d => `<button data-dow="${d}" aria-pressed="${d === dow}">${DOW[d].slice(0, 3)}</button>`).join('')}
+      </div>
+      <div class="banner"><span><b>${DOW[dow]} routine.</b> Every ${DOW[dow]} starts from this list. Changes here show up on ${DOW[dow]}s you haven’t started yet — days you’ve checked off or edited keep their own copy.</span></div>
+      ${renderGoals(tasks, false)}
+      <div class="sec-head">
+        <h2>${tasks.length} tasks</h2>
+        <select class="input" style="width:auto" data-act="copyFrom" aria-label="Copy another day's routine">
+          <option value="">Copy from…</option>
+          ${others.map(d => `<option value="${d}">${DOW[d]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="card">
+        ${renderList(tasks, 'routine', false)}
+        <div class="add-row"><button class="btn" data-act="add">+ Add task</button></div>
+      </div>
+      <div class="foot-actions">
+        ${tasks.length ? `<button class="btn small ghost danger" data-act="clearRoutine">Clear ${DOW[dow]}</button>` : ''}
+      </div>`;
+  }
+
+  // ---------- events ----------
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+    view.tab = b.dataset.view;
+    if (view.tab === 'routine') view.dow = dateOf(view.date).getDay();
+    render();
+    window.scrollTo({ top: 0 });
+  }));
+
+  app.addEventListener('click', e => {
+    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode]');
+    if (!el || drag) return;
+    if (el.dataset.date) { view.date = el.dataset.date; render(); return; }
+    if (el.dataset.dow) { view.dow = +el.dataset.dow; render(); return; }
+    if (el.dataset.mode) { state.ui.mode = el.dataset.mode; tlScrolled = null; commit(); return; }
+    const id = el.closest('[data-id]')?.dataset.id;
+    switch (el.dataset.act) {
+      case 'prev': view.date = addDays(view.date, -1); render(); break;
+      case 'next': view.date = addDays(view.date, 1); render(); break;
+      case 'today': view.date = todayKey(); render(); break;
+      case 'add': openTask(currentCtx(), null); break;
+      case 'edit': openTask(currentCtx(), id); break;
+      case 'settings': openSettings(); break;
+      case 'saveRoutine': {
+        const dow = dateOf(view.date).getDay();
+        const prev = state.routines[dow];
+        state.routines[dow] = dayTasks(view.date).map(({ id, title, start, dur, bucketId }) => ({ id, title, start, dur, bucketId })).sort(byStart);
+        commit();
+        toast(`Saved as your ${DOW[dow]} routine.`, () => { state.routines[dow] = prev; commit(); });
+        break;
+      }
+      case 'resetDay': {
+        const k = view.date, prev = state.days[k];
+        delete state.days[k];
+        commit();
+        toast('Day reset to routine.', () => { state.days[k] = prev; commit(); });
+        break;
+      }
+      case 'clearRoutine': {
+        const dow = view.dow, prev = state.routines[dow];
+        state.routines[dow] = [];
+        commit();
+        toast(`${DOW[dow]} cleared.`, () => { state.routines[dow] = prev; commit(); });
+        break;
+      }
+    }
+  });
+
+  app.addEventListener('change', e => {
+    const el = e.target;
+    if (el.dataset.act === 'toggle') {
+      const id = el.closest('[data-id]').dataset.id;
+      const t = dayMut(view.date).find(x => x.id === id);
+      if (t) t.done = el.checked;
+      commit();
+    } else if (el.dataset.act === 'copyFrom' && el.value !== '') {
+      const src = +el.value, dow = view.dow, prev = state.routines[dow];
+      state.routines[dow] = state.routines[src].map(t => ({ ...t, id: uid() }));
+      commit();
+      toast(`Copied ${DOW[src]} into ${DOW[dow]}.`, () => { state.routines[dow] = prev; commit(); });
+    }
+  });
+
+  // ---------- task dialog ----------
+  const dlg = $('#taskDlg'), form = $('#taskForm');
+  let editing = null; // { ctx, id }
+
+  function fillBucketSelect(sel, value) {
+    sel.innerHTML = '<option value="">No bucket</option>' +
+      state.buckets.map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
+    sel.value = bucketOf(value) ? value : '';
+  }
+
+  function openTask(ctx, id) {
+    const list = listFor(ctx, false);
+    const t = id ? list.find(x => x.id === id) : null;
+    editing = { ctx, id: t ? t.id : null };
+    const isDay = ctx.kind === 'day';
+    $('#taskDlgTitle').textContent = t ? 'Edit task' : (isDay ? 'Add task to this day' : `Add to ${DOW[ctx.dow]} routine`);
+    const last = list.slice().sort(byStart).at(-1);
+    const defStart = t ? t.start : (isDay && ctx.key === todayKey() ? Math.ceil(nowMin() / 15) * 15 : (last ? last.start + last.dur : 480));
+    form.title.value = t?.title ?? '';
+    fillBucketSelect(form.bucket, t?.bucketId ?? '');
+    form.start.value = toHHMM(clamp(defStart, 0, 1435));
+    form.dur.value = t?.dur ?? 30;
+    form.shift.checked = false;
+    $('#shiftLine').hidden = !t;
+    form.done.checked = !!t?.done;
+    form.notes.value = t?.notes ?? '';
+    $('#dayOnly').hidden = !isDay;
+    $('#delTask').hidden = !t;
+    updateEnds();
+    dlg.showModal();
+    if (!t) form.title.focus();
+  }
+
+  function updateEnds() {
+    const s = fromHHMM(form.start.value), d = Math.max(0, +form.dur.value || 0);
+    $('#endsAt').textContent = form.start.value ? `${fmtTime(s)} – ${fmtTime(s + d)} (${fmtDur(d)})` : '';
+  }
+  form.start.addEventListener('input', updateEnds);
+  form.dur.addEventListener('input', updateEnds);
+  form.addEventListener('click', e => {
+    const n = e.target.closest('[data-nudge]');
+    if (!n) return;
+    const [f, v] = n.dataset.nudge.split(':');
+    if (f === 'start') form.start.value = toHHMM(clamp(fromHHMM(form.start.value) + +v, 0, 1435));
+    else form.dur.value = clamp((+form.dur.value || 0) + +v, 0, 1440);
+    updateEnds();
+  });
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const { ctx, id } = editing;
+    const list = listFor(ctx, true);
+    const start = fromHHMM(form.start.value), dur = clamp(Math.round(+form.dur.value || 0), 0, 1440);
+    const fields = { title: form.title.value.trim() || 'Untitled', bucketId: form.bucket.value, start, dur };
+    if (ctx.kind === 'day') Object.assign(fields, { done: form.done.checked, notes: form.notes.value.trim() });
+    if (id) {
+      const t = list.find(x => x.id === id);
+      if (t) {
+        const oldEnd = t.start + t.dur, delta = (start + dur) - oldEnd;
+        if (form.shift.checked && delta) {
+          for (const o of list) if (o !== t && o.start >= oldEnd) o.start = clamp(o.start + delta, 0, 1435);
+        }
+        Object.assign(t, fields);
+      }
+    } else {
+      list.push({ id: uid(), done: false, notes: '', ...fields });
+    }
+    list.sort(byStart);
+    dlg.close();
+    commit();
+  });
+  $('#cancelTask').addEventListener('click', () => dlg.close());
+  $('#delTask').addEventListener('click', () => {
+    const { ctx, id } = editing;
+    const list = listFor(ctx, true);
+    const i = list.findIndex(x => x.id === id);
+    if (i < 0) return;
+    const [removed] = list.splice(i, 1);
+    dlg.close();
+    commit();
+    toast(`Deleted “${removed.title}”.`, () => { listFor(ctx, true).push(removed); listFor(ctx, true).sort(byStart); commit(); });
+  });
+
+  // ---------- settings dialog ----------
+  const setDlg = $('#setDlg'), setBody = $('#setBody');
+  const PALETTE = ['#7c5cd6', '#2f6fd6', '#2e9d57', '#d64545', '#e07a1f', '#1b9aaa', '#b8911a', '#c2447a', '#5b7083'];
+
+  function openSettings() { renderSettings(); setDlg.showModal(); }
+  function renderSettings() {
+    const bucketsHtml = state.buckets.map(b => `
+      <div class="brow" data-bid="${esc(b.id)}">
+        <input type="color" value="${esc(b.color)}" data-f="color" aria-label="Color for ${esc(b.name)}">
+        <input class="input" value="${esc(b.name)}" data-f="name" aria-label="Bucket name">
+        <button class="x" data-del-bucket aria-label="Delete ${esc(b.name)}">✕</button>
+      </div>`).join('');
+    const goalsHtml = state.goals.map(g => `
+      <div class="grow" data-gid="${esc(g.id)}">
+        <div class="brow">
+          <input class="input" value="${esc(g.name)}" data-f="name" aria-label="Goal name">
+          <button class="x" data-del-goal aria-label="Delete goal">✕</button>
+        </div>
+        <div class="brow">
+          <input class="input num" type="number" min="1" step="${g.metric === 'count' ? 1 : 5}" value="${g.target}" data-f="target" aria-label="Target">
+          <select class="input" data-f="metric" aria-label="Measured in">
+            <option value="minutes" ${g.metric === 'minutes' ? 'selected' : ''}>minutes</option>
+            <option value="count" ${g.metric === 'count' ? 'selected' : ''}>tasks done</option>
+          </select>
+          <span class="empty-note" data-role="hr">${g.metric === 'minutes' ? '= ' + fmtDur(g.target) : ''}</span>
+        </div>
+        <div class="bpick">${state.buckets.map(b => `
+          <label style="--c:${esc(b.color)}"><input type="checkbox" value="${esc(b.id)}" data-f="bucket" ${g.bucketIds.includes(b.id) ? 'checked' : ''}><span class="chip">${esc(b.name)}</span></label>`).join('')}
+        </div>
+      </div>`).join('');
+    setBody.innerHTML = `
+      <section class="set-sec">
+        <h4>Buckets</h4>
+        <p>Every task can sit in one bucket. Colors carry through the list and timeline.</p>
+        ${bucketsHtml}
+        <button class="btn small" id="addBucket">+ Add bucket</button>
+      </section>
+      <section class="set-sec">
+        <h4>Daily goals</h4>
+        <p>A goal adds up the checked-off tasks in the buckets you pick — minutes spent, or how many were done. Pick more than one bucket to combine them, like indoor + outside for “Exercise”.</p>
+        ${goalsHtml}
+        <button class="btn small" id="addGoal">+ Add goal</button>
+      </section>
+      <section class="set-sec">
+        <h4>Your data</h4>
+        <p>Everything lives in this browser only. Export a backup now and then, or to move it to another device.</p>
+        <div class="foot-actions" style="margin:0">
+          <button class="btn small" id="exportBtn">Export</button>
+          <button class="btn small" id="importBtn">Import</button>
+          <button class="btn small ghost danger" id="wipeBtn">Start over</button>
+        </div>
+      </section>`;
+  }
+
+  setBody.addEventListener('input', e => {
+    const el = e.target, f = el.dataset.f;
+    const brow = el.closest('[data-bid]'), grow = el.closest('[data-gid]');
+    if (brow) {
+      const b = bucketOf(brow.dataset.bid);
+      if (b && (f === 'name' || f === 'color')) b[f] = el.value;
+    } else if (grow) {
+      const g = state.goals.find(x => x.id === grow.dataset.gid);
+      if (!g) return;
+      if (f === 'name') g.name = el.value;
+      if (f === 'target') {
+        g.target = Math.max(1, Math.round(+el.value || 1));
+        const hr = grow.querySelector('[data-role="hr"]');
+        if (hr) hr.textContent = g.metric === 'minutes' ? '= ' + fmtDur(g.target) : '';
+      }
+    }
+    persist();
+  });
+  setBody.addEventListener('change', e => {
+    const el = e.target, grow = el.closest('[data-gid]');
+    if (!grow) { if (el.dataset.f === 'color') renderSettings(); return; }
+    const g = state.goals.find(x => x.id === grow.dataset.gid);
+    if (!g) return;
+    if (el.dataset.f === 'metric') { g.metric = el.value; persist(); renderSettings(); }
+    if (el.dataset.f === 'bucket') {
+      g.bucketIds = [...grow.querySelectorAll('[data-f="bucket"]:checked')].map(x => x.value);
+      persist();
+    }
+  });
+  setBody.addEventListener('click', e => {
+    const t = e.target;
+    if (t.closest('[data-del-bucket]')) {
+      const id = t.closest('[data-bid]').dataset.bid;
+      state.buckets = state.buckets.filter(b => b.id !== id);
+      for (const g of state.goals) g.bucketIds = g.bucketIds.filter(x => x !== id);
+      persist(); renderSettings();
+    } else if (t.closest('[data-del-goal]')) {
+      const id = t.closest('[data-gid]').dataset.gid;
+      state.goals = state.goals.filter(g => g.id !== id);
+      persist(); renderSettings();
+    } else if (t.id === 'addBucket') {
+      state.buckets.push({ id: uid(), name: 'New bucket', color: PALETTE[state.buckets.length % PALETTE.length] });
+      persist(); renderSettings();
+      setBody.querySelector('[data-bid]:last-of-type [data-f="name"]')?.select();
+    } else if (t.id === 'addGoal') {
+      state.goals.push({ id: uid(), name: 'New goal', bucketIds: [], metric: 'minutes', target: 30 });
+      persist(); renderSettings();
+      [...setBody.querySelectorAll('[data-gid] [data-f="name"]')].at(-1)?.select();
+    } else if (t.id === 'exportBtn') {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `planner-${todayKey()}.json` });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } else if (t.id === 'importBtn') {
+      $('#importFile').click();
+    } else if (t.id === 'wipeBtn') {
+      if (confirm('Erase every day, routine, bucket and goal and go back to the starting routine?')) {
+        state = seed(); persist(); renderSettings(); render();
+      }
+    }
+  });
+  $('#importFile').addEventListener('change', async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    try {
+      const s = JSON.parse(await file.text());
+      if (!valid(s)) throw new Error('bad');
+      state = s; state.ui = state.ui || { mode: 'list' };
+      for (let d = 0; d < 7; d++) state.routines[d] = state.routines[d] || [];
+      persist(); renderSettings(); render();
+      toast('Imported.');
+    } catch { toast('That file isn’t a planner export.'); }
+  });
+  const closeSettings = () => { setDlg.close(); };
+  $('#closeSet').addEventListener('click', closeSettings);
+  $('#doneSet').addEventListener('click', closeSettings);
+  setDlg.addEventListener('close', render);
+  $('#settingsBtn').addEventListener('click', openSettings);
+
+  // ---------- toast ----------
+  let toastTimer;
+  function toast(msg, undo) {
+    const el = $('#toast');
+    el.innerHTML = esc(msg) + (undo ? '<button type="button">Undo</button>' : '');
+    if (undo) el.querySelector('button').onclick = () => { el.classList.remove('show'); undo(); };
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), undo ? 6000 : 3000);
+  }
+
+  // Keep the "now" highlight moving, and roll over at midnight if left open.
+  let lastToday = todayKey();
+  setInterval(() => {
+    if (drag || dlg.open || setDlg.open) return;
+    const t = todayKey();
+    if (t !== lastToday) { if (view.date === lastToday) view.date = t; lastToday = t; }
+    if (view.tab === 'day' && view.date === t) render();
+  }, 60000);
+
+  render();
+})();
+</script>
+</body>
+</html>
