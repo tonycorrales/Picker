@@ -83,6 +83,17 @@ check off day by day. On GitHub Pages it's at
   as minutes or as a count — e.g. Exercise = 1h across both exercise buckets,
   Meals = 4 Diet tasks. The goal bars show done over planned.
 
+- **Water.** A water bar sits with the daily goals. Tap +8 / +16 / +24 (or type
+  an amount) as you drink; Undo takes back the last one.
+- **End-of-day check-in.** Morning weight (just logged, with the change since
+  the last weigh-in), hours slept, calories and protein — each with an
+  "at least" / "at most" target — plus yes/no for nicotine, alcohol, drugs and
+  a progress pic. All of it is editable in settings.
+- **Day color.** Every goal, water, each graded number and each yes/no counts as
+  one item. All hit is a green day, 1–3 short is yellow, 4+ is red. Today is
+  colored once the check-in is filled in; past days as soon as they have
+  anything recorded. The week strip shows each day's color.
+
 Everything is stored in the browser's localStorage, per device. Use
 **Export / Import** (the sliders button) to back up or move to another device.
 
