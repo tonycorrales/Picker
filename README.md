@@ -103,8 +103,31 @@ check off day by day. On GitHub Pages it's at
   current run of Consecutive Days Lived Hard, and the record run. Today still
   in progress doesn't break the streak.
 
-Everything is stored in the browser's localStorage, per device. Use
-**Export / Import** (the sliders button) to back up or move to another device.
+- **% Improved.** On the Overview: +1% for each day lived hard, −1% for each
+  day lived soft, 0 for complacent. Pick the range — since you started, the
+  last 7 / 30 / 365 days, or from any date.
+- **Started living hard.** A date on the Overview; days before it aren't
+  graded or counted anywhere (tallies, streaks, % improved). It's also the
+  default start for % improved.
+
+### Sync
+
+Sign in under the sliders button to keep devices in step. It uses the same
+accounts as the pick'em (the Worker's `/api/register` and `/api/login`), and
+stores one planner per account in KV under `planner:<user>` via
+`GET/POST /api/planner`. Each device keeps working offline in localStorage and
+syncs in the background — a second after each change, when the app comes back
+to the foreground, and every minute while open. Saves carry the revision they
+were based on; if another device saved first, the Worker answers 409 with its
+copy and the page merges field by field (tasks by id, water entries, each
+check-in answer) against the last copy both agreed on, then saves again. Which
+view you're on and similar per-device settings aren't synced.
+
+**After merging this, redeploy the Worker** — paste the new `worker.js` into
+the Cloudflare dashboard (Edit code → Deploy). Until then the page signs in but
+reports that the sync server needs updating.
+
+**Export / Import** (the sliders button) still saves or restores a file copy.
 
 ## Setup
 
@@ -168,6 +191,7 @@ play stale numbers.
 | `POST /api/register` · `/api/login` · `/api/logout` · `/api/me` | Accounts and sessions |
 | `POST /api/lock` | Seal the signed-in user's entry (games already kicked off are dropped) |
 | `GET /api/leaderboard?season` | Season-to-date standings, ranked on overall % |
+| `GET` · `POST /api/planner` | The signed-in user's Live Hard planner (`{ rev, at, data }`); POST takes `{ baseRev, data }` and answers 409 with the current copy if `baseRev` is stale |
 
 Lines and scores come from ESPN's public scoreboard endpoint, which needs no key
 and no signup. Spreads and totals are DraftKings' numbers as ESPN publishes them.

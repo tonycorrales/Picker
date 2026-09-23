@@ -370,6 +370,33 @@
   .tm-val.empty { font-weight: 500; color: var(--ink-3); }
   .bnote { font-size: 12px; color: var(--ink-3); margin: 0 0 6px; }
 
+  /* Improved */
+  .ov-imp { padding: 14px 16px; margin: 18px 0 12px; }
+  .imp-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .imp-top > div { display: flex; flex-direction: column; }
+  .imp-big { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .imp-big.up { color: var(--green); } .imp-big.down { color: var(--red); }
+  .imp-start { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .imp-start .input, .imp-custom .input { padding: 6px 9px; width: auto; }
+  .imp-ranges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .imp-ranges button { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 4px 11px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+  .imp-ranges button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: transparent; }
+  .imp-custom { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+  .imp-note { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }
+  .ov-imp + .ov-hero { margin-top: 0; }
+
+  /* Sync */
+  .icon-btn { position: relative; }
+  .sdot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg); background: var(--ink-3); }
+  .sdot.ok, .sdot.idle { background: var(--green); }
+  .sdot.busy { background: var(--yellow); }
+  .sdot.offline { background: var(--ink-3); }
+  .sdot.error { background: var(--red); }
+  .sync-msg { margin: 8px 0 0 !important; font-size: 13px; }
+  .sync-msg.error { color: var(--red) !important; }
+  .sync-state.ok, .sync-state.idle { color: var(--green); font-weight: 600; }
+  .sync-state.error { color: var(--red); font-weight: 600; }
+
   /* Water */
   .goal.water { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   .wbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
@@ -423,7 +450,8 @@
       <button data-view="routine">Routine</button>
       <button data-view="overview">Overview</button>
     </div>
-    <button class="icon-btn" id="settingsBtn" aria-label="Goals, check-in and data">
+    <button class="icon-btn" id="settingsBtn" aria-label="Goals, check-in, sync and data">
+      <span class="sdot" id="syncDot" hidden></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
     </button>
   </div>
@@ -644,6 +672,7 @@
   function persist() {
     try { localStorage.setItem(STORE, JSON.stringify(state)); saveFailed = false; }
     catch { if (!saveFailed) toast('Couldn’t save in this browser — use Export to keep a copy.'); saveFailed = true; }
+    schedulePush();
   }
 
   let state = normalize(load() || seed());
@@ -691,9 +720,10 @@
     const today = todayKey();
     // Past days are graded once there's anything recorded; today only once the
     // check-in is filled in, so it isn't red all morning.
-    const graded = k < today ? !!state.days[k] : k === today && answered;
+    const before = !!state.startDate && k < state.startDate;
+    const graded = !before && (k < today ? !!state.days[k] : k === today && answered);
     const status = short.length === 0 ? 'green' : short.length <= 3 ? 'yellow' : 'red';
-    return { items, short, answered, graded, status };
+    return { items, short, answered, graded, status, before };
   }
   // The list a context edits: a date, or a weekday routine.
   function listFor(ctx, mutate) {
@@ -790,6 +820,9 @@
     const sc = dayScore(k);
     if (!sc.items.length) return '';
     const shortList = sc.short.map(i => esc(i.name)).join(', ');
+    if (sc.before) {
+      return `<div class="status pending"><b>Before you started</b><span>Living hard since ${esc(dateOf(state.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))} — this day isn’t counted.</span></div>`;
+    }
     if (!sc.graded) {
       if (k > todayKey()) return '';
       return `<div class="status pending"><b>In progress</b><span>${sc.items.length - sc.short.length} of ${sc.items.length} hit so far · colored once the check-in is filled in</span></div>`;
@@ -1071,6 +1104,38 @@
     return { tally, current, best, total: days.length };
   }
 
+  // +1% per day lived hard, -1% per day lived soft, complacent days count 0.
+  const RANGES = [['start', 'Since start'], ['7', '7 days'], ['30', '30 days'], ['365', 'Year'], ['custom', 'Custom']];
+  function improvedFrom() {
+    const r = state.ui.impRange || 'start', today = todayKey();
+    if (r === 'custom' && state.ui.impFrom) return state.ui.impFrom;
+    if (/^\d+$/.test(r)) return addDays(today, -(+r - 1));
+    return state.startDate || gradedDays()[0]?.k || today;
+  }
+  const fmtDay = k => dateOf(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: dateOf(k).getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+
+  function renderImproved() {
+    const from = improvedFrom(), today = todayKey(), r = state.ui.impRange || 'start';
+    const days = gradedDays().filter(d => d.k >= from && d.k <= today);
+    const c = { green: 0, yellow: 0, red: 0 };
+    for (const d of days) c[d.sc.status]++;
+    const score = c.green - c.red;
+    const cls = score > 0 ? 'up' : score < 0 ? 'down' : '';
+    return `
+      <section class="card ov-imp">
+        <div class="imp-top">
+          <div><span class="imp-big ${cls}">${score > 0 ? '+' : score < 0 ? '−' : ''}${Math.abs(score)}%</span><span class="ov-lbl">Improved</span></div>
+          <label class="imp-start"><span>Started living hard</span>
+            <input class="input" type="date" data-act="startDate" value="${esc(state.startDate || '')}" max="${today}"></label>
+        </div>
+        <div class="imp-ranges" role="group" aria-label="Range">
+          ${RANGES.map(([v, l]) => `<button data-range="${v}" aria-pressed="${r === v}">${l}</button>`).join('')}
+        </div>
+        ${r === 'custom' ? `<label class="imp-custom">From <input class="input" type="date" data-act="impFrom" value="${esc(from)}" max="${today}"></label>` : ''}
+        <p class="imp-note">${fmtDay(from)} – today · ${c.green} hard (+${c.green}) · ${c.yellow} complacent · ${c.red} soft (−${c.red})</p>
+      </section>`;
+  }
+
   function renderOverview() {
     const { tally, current, best, total } = lifeStats();
     const [y, m] = view.month.split('-').map(Number);
@@ -1092,6 +1157,7 @@
     }
     const pct = total ? Math.round(100 * tally.green / total) : 0;
     return `
+      ${renderImproved()}
       <div class="ov-hero card">
         <div class="ov-streak">
           <span class="ov-big">${current}</span>
@@ -1162,8 +1228,9 @@
   }));
 
   app.addEventListener('click', e => {
-    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode], [data-open]');
+    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode], [data-open], [data-range]');
     if (!el || drag) return;
+    if (el.dataset.range) { state.ui.impRange = el.dataset.range; persist(); render(); return; }
     if (el.dataset.open) { view.date = el.dataset.open; view.tab = 'day'; render(); window.scrollTo({ top: 0 }); return; }
     if (el.dataset.date) { view.date = el.dataset.date; render(); return; }
     if (el.dataset.dow) { view.dow = +el.dataset.dow; render(); return; }
@@ -1255,6 +1322,12 @@
       commit();
       // Checking off a task that tracks something opens it so you can log the number.
       if (t?.done && taskTms(t).some(m => !hasValue(t.values?.[m.id]))) openTask(currentCtx(), id, true);
+    } else if (el.dataset.act === 'startDate') {
+      state.startDate = el.value || null;
+      commit();
+    } else if (el.dataset.act === 'impFrom' && el.value) {
+      state.ui.impFrom = el.value;
+      commit();
     } else if (el.dataset.act === 'copyFrom' && el.value !== '') {
       const src = +el.value, dow = view.dow, prev = state.routines[dow];
       state.routines[dow] = state.routines[src].map(t => ({ ...t, id: uid() }));
@@ -1410,7 +1483,10 @@
   const setDlg = $('#setDlg'), setBody = $('#setBody');
   const PALETTE = ['#7c5cd6', '#2f6fd6', '#2e9d57', '#d64545', '#e07a1f', '#1b9aaa', '#b8911a', '#c2447a', '#5b7083'];
 
-  function openSettings() { renderSettings(); setDlg.showModal(); }
+  function openSettings() {
+    renderSettings(); setDlg.showModal();
+    if (!sync) fetch(API + '/api/me').then(r => r.json()).then(b => { if (b.signupCodeRequired && !syncUi.codeRequired) { syncUi.codeRequired = true; renderSyncSection(); } }).catch(() => {});
+  }
   function renderSettings() {
     const bucketsHtml = state.buckets.map(b => `
       <div class="brow" data-bid="${esc(b.id)}">
@@ -1439,6 +1515,7 @@
         </div>
       </div>`).join('');
     setBody.innerHTML = `
+      <section class="set-sec" id="syncSec"></section>
       <section class="set-sec">
         <h4>Buckets</h4>
         <p>Every task can sit in one bucket. Colors carry through the list and timeline.</p>
@@ -1508,16 +1585,21 @@
       </section>
       <section class="set-sec">
         <h4>Your data</h4>
-        <p>Everything lives in this browser only. Export a backup now and then, or to move it to another device.</p>
+        <p>${sync ? 'Synced to your account, and kept in this browser too.' : 'Everything lives in this browser only until you sign in above.'} Export saves a copy as a file.</p>
         <div class="foot-actions" style="margin:0">
           <button class="btn small" id="exportBtn">Export</button>
           <button class="btn small" id="importBtn">Import</button>
           <button class="btn small ghost danger" id="wipeBtn">Start over</button>
         </div>
       </section>`;
+    renderSyncSection();
   }
 
+  setBody.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.target.id === 'syncPass' || e.target.id === 'syncName' || e.target.id === 'syncCode')) signIn(false);
+  });
   setBody.addEventListener('input', e => {
+    if (e.target.closest('#syncSec')) return;
     const el = e.target, tr = state.tracking;
     if (el.dataset.w) {
       if (el.dataset.w === 'target') tr.water.target = Math.max(0, +el.value || 0);
@@ -1576,6 +1658,7 @@
   });
   setBody.addEventListener('click', e => {
     const t = e.target;
+    if (t.closest('#syncSec')) { const b = t.closest('button'); if (b) syncClick(b); return; }
     if (t.closest('[data-del-bucket]')) {
       const id = t.closest('[data-bid]').dataset.bid;
       state.buckets = state.buckets.filter(b => b.id !== id);
@@ -1650,6 +1733,238 @@
   setDlg.addEventListener('close', render);
   $('#settingsBtn').addEventListener('click', openSettings);
 
+  // ---------- sync ----------
+  // Signs in against the Sunday Slip Worker (same accounts) and keeps one copy
+  // of the planner per account. Each device keeps working offline; changes
+  // are merged three ways against the last copy both sides agreed on, so two
+  // devices editing different days (or different settings) never clobber
+  // each other. Per-device view settings (state.ui) are not synced.
+  const API = 'https://sunday-slip.tonycorrales34.workers.dev';
+  const SYNC = 'live-hard.sync', SYNC_BASE = 'live-hard.sync.base';
+  let sync = (() => { try { return JSON.parse(localStorage.getItem(SYNC)) || null; } catch { return null; } })();
+  let syncBase = (() => { try { return localStorage.getItem(SYNC_BASE); } catch { return null; } })();
+  const syncUi = { status: sync ? 'idle' : 'off', msg: '', choice: null, codeRequired: false, busy: false };
+
+  const shareable = st => { const { ui, ...rest } = st; return rest; };
+  function saveSync() {
+    try {
+      if (sync) localStorage.setItem(SYNC, JSON.stringify(sync)); else localStorage.removeItem(SYNC);
+      if (syncBase != null) localStorage.setItem(SYNC_BASE, syncBase); else localStorage.removeItem(SYNC_BASE);
+    } catch {}
+  }
+  async function api(path, opts = {}) {
+    const res = await fetch(API + path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', ...(sync?.token ? { Authorization: 'Bearer ' + sync.token } : {}) },
+    });
+    let body = null;
+    try { body = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, body: body || {} };
+  }
+
+  // Three-way merge: whatever changed on only one side since the last agreed
+  // copy wins; objects merge key by key, and lists of items with an id (tasks,
+  // goals, buckets…) or a timestamp (water) merge item by item. Only a true
+  // clash — the same field changed on both devices — goes to this device.
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  function mergeVal(b, l, r) {
+    if (same(l, r)) return l;
+    if (same(l, b)) return r;
+    if (same(r, b)) return l;
+    if (isObj(l) && isObj(r)) {
+      const out = {};
+      for (const k of new Set([...Object.keys(l), ...Object.keys(r)])) {
+        const v = mergeVal(isObj(b) ? b[k] : undefined, l[k], r[k]);
+        if (v !== undefined) out[k] = v;
+      }
+      return out;
+    }
+    if (Array.isArray(l) && Array.isArray(r)) {
+      const all = [...l, ...r];
+      const key = all.length && all.every(x => isObj(x) && 'id' in x) ? 'id' : all.length && all.every(x => isObj(x) && 't' in x) ? 't' : null;
+      if (!key) return l;
+      const idx = arr => new Map((Array.isArray(arr) ? arr : []).filter(isObj).map(x => [x[key], x]));
+      const bm = idx(b), lm = idx(l), rm = idx(r), out = [];
+      for (const id of new Set([...lm.keys(), ...rm.keys()])) {
+        const bv = bm.get(id), lv = lm.get(id), rv = rm.get(id);
+        if (lv === undefined && bv !== undefined && same(rv, bv)) continue; // deleted here
+        if (rv === undefined && bv !== undefined && same(lv, bv)) continue; // deleted there
+        const v = lv === undefined ? rv : rv === undefined ? lv : mergeVal(bv, lv, rv);
+        if (v !== undefined) out.push(v);
+      }
+      return out;
+    }
+    return l;
+  }
+  const merge3 = (base, local, remote) => mergeVal(base, local, remote);
+
+  function setStatus(status, msg = '') {
+    syncUi.status = status; syncUi.msg = msg;
+    const dot = $('#syncDot');
+    dot.hidden = !sync;
+    dot.className = 'sdot ' + status;
+    if (setDlg.open) renderSyncSection();
+  }
+
+  // Adopt a copy from the server: merge it with local edits made since the
+  // last agreed copy, then push if the result differs from what the server has.
+  function adopt(remote) {
+    const base = syncBase ? JSON.parse(syncBase) : null;
+    const local = shareable(state);
+    const merged = base ? merge3(base, local, remote.data) : remote.data;
+    const busy = document.activeElement?.closest?.('#app') && document.activeElement.matches('input, textarea, select');
+    state = normalize({ ...merged, ui: state.ui });
+    for (const r of Object.values(state.days)) r.tasks?.sort(byStart);
+    for (let d = 0; d < 7; d++) state.routines[d].sort(byStart);
+    sync.rev = remote.rev; sync.at = remote.at;
+    syncBase = JSON.stringify(remote.data);
+    saveSync();
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {}
+    // Don't rebuild the page under someone mid-typing; the next render picks it up.
+    if (!busy && !drag) render();
+  }
+
+  let pushTimer = null, inflight = false;
+  function schedulePush() {
+    if (!sync || syncUi.choice) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(push, 1200);
+  }
+  async function push(attempt = 0) {
+    if (!sync || syncUi.choice) return;
+    const data = shareable(state), raw = JSON.stringify(data);
+    if (raw === syncBase) { setStatus('ok'); return; }
+    if (inflight) { schedulePush(); return; }
+    inflight = true; setStatus('busy');
+    try {
+      const r = await api('/api/planner', { method: 'POST', body: JSON.stringify({ baseRev: sync.rev || 0, data }) });
+      if (r.ok) {
+        sync.rev = r.body.rev; sync.at = r.body.at; syncBase = raw; saveSync(); setStatus('ok');
+      } else if (r.status === 409 && attempt < 3) {
+        inflight = false;
+        if (r.body.data) adopt(r.body); else { sync.rev = r.body.rev || 0; saveSync(); }
+        return push(attempt + 1);
+      } else if (r.status === 401) {
+        signedOut('Your session ended — sign in again to keep syncing.');
+      } else if (r.status === 404) {
+        setStatus('error', 'The sync server hasn’t been updated yet (redeploy worker.js).');
+      } else {
+        setStatus('error', r.body.error || `Sync failed (${r.status}).`);
+      }
+    } catch { setStatus('offline', 'Offline — changes will sync when you’re back online.'); }
+    finally { inflight = false; }
+  }
+  async function pull() {
+    if (!sync || syncUi.choice || inflight) return;
+    try {
+      const r = await api('/api/planner');
+      if (r.status === 401) return signedOut('Your session ended — sign in again to keep syncing.');
+      if (r.status === 404) return setStatus('error', 'The sync server hasn’t been updated yet (redeploy worker.js).');
+      if (!r.ok) return setStatus('error', r.body.error || `Sync failed (${r.status}).`);
+      if (r.body.data && r.body.rev !== sync.rev) adopt(r.body);
+      await push();
+    } catch { setStatus('offline', 'Offline — changes will sync when you’re back online.'); }
+  }
+  function signedOut(msg) {
+    sync = null; syncBase = null; saveSync();
+    syncUi.choice = null;
+    setStatus('off', msg);
+    if (msg) toast(msg);
+  }
+
+  async function signIn(create) {
+    const name = $('#syncName')?.value.trim(), password = $('#syncPass')?.value || '', code = $('#syncCode')?.value || '';
+    if (!name || !password) { setStatus('off', 'Enter a name and password.'); return; }
+    syncUi.busy = true; setStatus('off', create ? 'Creating account…' : 'Signing in…');
+    try {
+      const r = await fetch(API + (create ? '/api/register' : '/api/login'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: name, password, code }),
+      }).then(async x => ({ ok: x.ok, status: x.status, body: await x.json().catch(() => ({})) }));
+      if (!r.ok) {
+        if (create && r.status === 403 && /code/i.test(r.body.error || '')) syncUi.codeRequired = true;
+        syncUi.busy = false; setStatus('off', r.body.error || 'Couldn’t sign in.'); return;
+      }
+      sync = { token: r.body.token, user: r.body.user, rev: 0, at: null };
+      syncBase = null; saveSync();
+      const g = await api('/api/planner');
+      syncUi.busy = false;
+      if (g.status === 404) { setStatus('error', 'Signed in, but the sync server hasn’t been updated yet (redeploy worker.js).'); return; }
+      if (!g.ok) { setStatus('error', g.body.error || 'Couldn’t reach sync.'); return; }
+      const hasLocal = Object.keys(state.days).length > 0;
+      if (!g.body.data) { await push(); toast(`Signed in as ${sync.user.name}. This device is now synced.`); }
+      else if (!hasLocal) { adopt(g.body); setStatus('ok'); toast(`Signed in as ${sync.user.name}. Loaded your planner.`); }
+      else { syncUi.choice = g.body; setStatus('idle', ''); }
+    } catch { syncUi.busy = false; setStatus('off', 'Can’t reach the server — check your connection.'); }
+  }
+
+  function renderSyncSection() {
+    const sec = $('#syncSec');
+    if (!sec) return;
+    const msg = syncUi.msg ? `<p class="sync-msg ${syncUi.status}">${esc(syncUi.msg)}</p>` : '';
+    if (!sync) {
+      // Keep what was typed when the form redraws (e.g. after a wrong password).
+      const kept = { name: $('#syncName')?.value || '', code: $('#syncCode')?.value || '' };
+      sec.innerHTML = `<h4>Sync</h4>
+        <p>Sign in to keep your phone and computer in step. Uses your Sunday Slip account — or create one.</p>
+        <div class="brow"><input class="input" id="syncName" placeholder="Name" autocomplete="username" autocapitalize="off" value="${esc(kept.name)}"></div>
+        <div class="brow"><input class="input" id="syncPass" type="password" placeholder="Password" autocomplete="current-password"></div>
+        ${syncUi.codeRequired ? `<div class="brow"><input class="input" id="syncCode" placeholder="Signup code (new accounts only)" value="${esc(kept.code)}"></div>` : ''}
+        <div class="foot-actions" style="margin:0">
+          <button class="btn small primary" id="syncIn" ${syncUi.busy ? 'disabled' : ''}>Sign in</button>
+          <button class="btn small" id="syncUp" ${syncUi.busy ? 'disabled' : ''}>Create account</button>
+        </div>${msg}`;
+      return;
+    }
+    if (syncUi.choice) {
+      const n = Object.keys(syncUi.choice.data.days || {}).length;
+      sec.innerHTML = `<h4>Sync</h4>
+        <p>Signed in as <b>${esc(sync.user.name)}</b>. Your account already has a planner (${n} day${n === 1 ? '' : 's'} logged${syncUi.choice.at ? `, last saved ${esc(new Date(syncUi.choice.at).toLocaleString())}` : ''}), and so does this device. Which one should both use from now on?</p>
+        <div class="foot-actions" style="margin:0">
+          <button class="btn small primary" id="keepRemote">Use the account’s</button>
+          <button class="btn small" id="keepLocal">Use this device’s</button>
+          <button class="btn small ghost" id="syncOut">Cancel</button>
+        </div>`;
+      return;
+    }
+    const when = sync.at ? new Date(sync.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+    const label = { ok: 'Synced', busy: 'Syncing…', offline: 'Offline', error: 'Not synced', idle: 'Synced' }[syncUi.status] || '';
+    sec.innerHTML = `<h4>Sync</h4>
+      <p>Signed in as <b>${esc(sync.user.name)}</b> · <span class="sync-state ${syncUi.status}">${label}</span> · last saved ${esc(when)}</p>
+      <div class="foot-actions" style="margin:0">
+        <button class="btn small" id="syncNow">Sync now</button>
+        <button class="btn small ghost" id="syncOut">Sign out</button>
+      </div>${msg}`;
+  }
+
+  async function syncClick(t) {
+    if (t.id === 'syncIn') return signIn(false);
+    if (t.id === 'syncUp') return signIn(true);
+    if (t.id === 'syncNow') { await pull(); return; }
+    if (t.id === 'keepRemote') {
+      const remote = syncUi.choice; syncUi.choice = null; syncBase = null;
+      adopt(remote); setStatus('ok'); toast('Loaded your planner from your account.');
+      return;
+    }
+    if (t.id === 'keepLocal') {
+      sync.rev = syncUi.choice.rev; syncUi.choice = null; syncBase = null; saveSync();
+      await push(); toast('Your account now has this device’s planner.');
+      return;
+    }
+    if (t.id === 'syncOut') {
+      const token = sync?.token;
+      if (token && !syncUi.choice) fetch(API + '/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
+      signedOut('');
+      renderSyncSection();
+    }
+  }
+
+  // Pull when the app comes back to the foreground, and every minute while open.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); });
+  window.addEventListener('online', () => pull());
+  setInterval(() => { if (document.visibilityState === 'visible') pull(); }, 60000);
+
   // ---------- toast ----------
   let toastTimer;
   function toast(msg, undo) {
@@ -1671,6 +1986,7 @@
   }, 60000);
 
   render();
+  if (sync) { setStatus('idle'); pull(); }
 })();
 </script>
 </body>
