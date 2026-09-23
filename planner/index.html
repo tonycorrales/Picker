@@ -127,8 +127,8 @@
   .goals-head h2, .sec-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0; font-weight: 600; }
   .goals-head span { font-size: 13px; color: var(--ink-2); }
   .goal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 18px; }
-  .goal .row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
-  .goal .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .goal .row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; font-size: 14px; }
+  .goal .name { min-width: 3.5em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .goal .val { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .goal.met .val { color: var(--accent); font-weight: 600; }
   .bar { position: relative; height: 8px; border-radius: 99px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
@@ -358,6 +358,45 @@
     .seg button { padding: 6px 10px; }
   }
 
+  /* Task metrics */
+  .tm-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .tm-row .tm-name { flex: 1; font-size: 14px; font-weight: 550; min-width: 0; }
+  .tm-row .input { width: 90px; text-align: right; padding: 6px 9px; }
+  .tm-row em { font-style: normal; color: var(--ink-3); font-size: 13px; min-width: 40px; }
+  .tm-new { display: flex; gap: 6px; margin-top: 6px; }
+  .tm-new[hidden] { display: none; }
+  .tm-new .input { padding: 6px 9px; min-width: 0; }
+  .tm-val { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border-radius: 99px; padding: 1px 8px; }
+  .tm-val.empty { font-weight: 500; color: var(--ink-3); }
+  .bnote { font-size: 12px; color: var(--ink-3); margin: 0 0 6px; }
+
+  /* Improved */
+  .ov-imp { padding: 14px 16px; margin: 18px 0 12px; }
+  .imp-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .imp-top > div { display: flex; flex-direction: column; }
+  .imp-big { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .imp-big.up { color: var(--green); } .imp-big.down { color: var(--red); }
+  .imp-start { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .imp-start .input, .imp-custom .input { padding: 6px 9px; width: auto; }
+  .imp-ranges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .imp-ranges button { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 4px 11px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+  .imp-ranges button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: transparent; }
+  .imp-custom { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+  .imp-note { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); }
+  .ov-imp + .ov-hero { margin-top: 0; }
+
+  /* Sync */
+  .icon-btn { position: relative; }
+  .sdot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg); background: var(--ink-3); }
+  .sdot.ok, .sdot.idle { background: var(--green); }
+  .sdot.busy { background: var(--yellow); }
+  .sdot.offline { background: var(--ink-3); }
+  .sdot.error { background: var(--red); }
+  .sync-msg { margin: 8px 0 0 !important; font-size: 13px; }
+  .sync-msg.error { color: var(--red) !important; }
+  .sync-state.ok, .sync-state.idle { color: var(--green); font-weight: 600; }
+  .sync-state.error { color: var(--red); font-weight: 600; }
+
   /* Water */
   .goal.water { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   .wbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
@@ -411,7 +450,8 @@
       <button data-view="routine">Routine</button>
       <button data-view="overview">Overview</button>
     </div>
-    <button class="icon-btn" id="settingsBtn" aria-label="Goals, check-in and data">
+    <button class="icon-btn" id="settingsBtn" aria-label="Goals, check-in, sync and data">
+      <span class="sdot" id="syncDot" hidden></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
     </button>
   </div>
@@ -425,6 +465,18 @@
     <div class="dlg-body">
       <label class="field"><span>Task</span><input class="input" name="title" required autocomplete="off" placeholder="e.g. Gym"></label>
       <label class="field"><span>Bucket</span><select class="input" name="bucket"></select></label>
+      <div class="field">
+        <span>Track additional metric</span>
+        <div id="tmList"></div>
+        <div class="tm-add">
+          <select class="input" id="tmAddSel" aria-label="Add a metric to this task"></select>
+        </div>
+        <div class="tm-new" id="tmNew" hidden>
+          <input class="input" id="tmNewName" placeholder="Name, e.g. Pages read" autocomplete="off">
+          <input class="input" id="tmNewUnit" placeholder="Unit, e.g. pages" autocomplete="off" style="width:120px;flex:none">
+          <button type="button" class="btn small" id="tmNewAdd">Add</button>
+        </div>
+      </div>
       <div class="two">
         <label class="field"><span>Start</span><input class="input" type="time" name="start" required step="300">
           <div class="nudges"><button type="button" data-nudge="start:-15">−15m</button><button type="button" data-nudge="start:15">+15m</button><button type="button" data-nudge="start:60">+1h</button></div>
@@ -588,6 +640,18 @@
       if (!s.tracking.metrics.some(m => m.id === 'steps')) s.tracking.metrics.push({ ...def.metrics.find(m => m.id === 'steps'), since: todayKey() });
       s.tracking.v = 2;
     }
+    s.taskMetrics = Array.isArray(s.taskMetrics) ? s.taskMetrics : [];
+    // v3: per-task metrics, starting with pages read on the Bible and Read tasks.
+    if (s.tracking.v < 3) {
+      if (!s.taskMetrics.some(m => m.id === 'pages')) s.taskMetrics.push({ id: 'pages', name: 'Pages read', unit: 'pages' });
+      const attach = t => {
+        if (/\b(bible|read)\b/i.test(t.title) && !(t.metricIds || []).includes('pages')) t.metricIds = [...(t.metricIds || []), 'pages'];
+      };
+      for (let d = 0; d < 7; d++) s.routines[d].forEach(attach);
+      const today = todayKey();
+      for (const [k, rec] of Object.entries(s.days)) if (k >= today && rec.tasks) rec.tasks.forEach(attach);
+      s.tracking.v = 3;
+    }
     return s;
   }
 
@@ -608,6 +672,7 @@
   function persist() {
     try { localStorage.setItem(STORE, JSON.stringify(state)); saveFailed = false; }
     catch { if (!saveFailed) toast('Couldn’t save in this browser — use Export to keep a copy.'); saveFailed = true; }
+    schedulePush();
   }
 
   let state = normalize(load() || seed());
@@ -655,9 +720,10 @@
     const today = todayKey();
     // Past days are graded once there's anything recorded; today only once the
     // check-in is filled in, so it isn't red all morning.
-    const graded = k < today ? !!state.days[k] : k === today && answered;
+    const before = !!state.startDate && k < state.startDate;
+    const graded = !before && (k < today ? !!state.days[k] : k === today && answered);
     const status = short.length === 0 ? 'green' : short.length <= 3 ? 'yellow' : 'red';
-    return { items, short, answered, graded, status };
+    return { items, short, answered, graded, status, before };
   }
   // The list a context edits: a date, or a weekday routine.
   function listFor(ctx, mutate) {
@@ -669,7 +735,23 @@
   }
   function commit() { persist(); render(); }
 
+  const taskMetricOf = id => state.taskMetrics.find(m => m.id === id);
+  const tmIdOf = g => g.metric.startsWith('tm:') ? g.metric.slice(3) : null;
+  const taskTms = t => (t.metricIds || []).map(taskMetricOf).filter(Boolean);
+
   function goalProgress(goal, tasks) {
+    const tm = tmIdOf(goal);
+    if (tm) {
+      // Sums what was logged on any task (or only the goal's buckets, if it has any).
+      const ids = new Set(goal.bucketIds);
+      let done = 0;
+      for (const t of tasks) {
+        if (ids.size && !ids.has(t.bucketId)) continue;
+        const v = t.values?.[tm];
+        if (hasValue(v)) done += +v;
+      }
+      return { done, plan: 0, tm: true };
+    }
     const ids = new Set(goal.bucketIds);
     let done = 0, plan = 0;
     for (const t of tasks) {
@@ -680,8 +762,12 @@
     }
     return { done, plan };
   }
-  const goalFmt = (g, v) => g.metric === 'count' ? String(v) : fmtDur(v);
-  const goalColor = g => colorOf(g.bucketIds[0]) || 'var(--accent)';
+  const goalFmt = (g, v) => {
+    const tm = tmIdOf(g);
+    if (tm) return `${num(v)} ${taskMetricOf(tm)?.unit || ''}`.trim();
+    return g.metric === 'count' ? String(v) : fmtDur(v);
+  };
+  const goalColor = g => colorOf(g.bucketIds[0]) || (tmIdOf(g) ? '#b8911a' : 'var(--accent)');
 
   // ---------- render ----------
   const app = $('#app');
@@ -734,6 +820,9 @@
     const sc = dayScore(k);
     if (!sc.items.length) return '';
     const shortList = sc.short.map(i => esc(i.name)).join(', ');
+    if (sc.before) {
+      return `<div class="status pending"><b>Before you started</b><span>Living hard since ${esc(dateOf(state.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))} — this day isn’t counted.</span></div>`;
+    }
     if (!sc.graded) {
       if (k > todayKey()) return '';
       return `<div class="status pending"><b>In progress</b><span>${sc.items.length - sc.short.length} of ${sc.items.length} hit so far · colored once the check-in is filled in</span></div>`;
@@ -815,16 +904,20 @@
     }
     let met = 0;
     const items = state.goals.map(g => {
-      const { done, plan } = goalProgress(g, tasks);
+      const { done, plan, tm } = goalProgress(g, tasks);
       const tgt = Math.max(1, g.target);
       const isMet = withDone && done >= g.target;
       if (isMet) met++;
       const shown = withDone ? done : plan;
-      const hint = withDone
+      let hint = withDone
         ? (plan < g.target ? `Only ${goalFmt(g, plan)} planned` : `${goalFmt(g, plan)} planned`)
         : (plan < g.target ? `${goalFmt(g, g.target - plan)} short` : 'Covered');
+      if (tm) {
+        const on = tasks.filter(t => (t.metricIds || []).includes(tmIdOf(g))).length;
+        hint = on ? `Tracked on ${on} task${on === 1 ? '' : 's'}` : 'No task tracks this yet';
+      }
       return `<div class="goal${isMet ? ' met' : ''}" style="--c:${esc(goalColor(g))}">
-        <div class="row"><span class="name">${esc(g.name)}</span><span class="val">${isMet ? '✓ ' : ''}${goalFmt(g, shown)} / ${goalFmt(g, g.target)}</span></div>
+        <div class="row"><span class="name">${esc(g.name)}</span><span class="val">${isMet ? '✓ ' : ''}${tm && !withDone ? '' : (tm ? num(shown) : goalFmt(g, shown)) + ' / '}${goalFmt(g, g.target)}</span></div>
         <div class="bar" role="img" aria-label="${esc(g.name)}: ${goalFmt(g, shown)} of ${goalFmt(g, g.target)}">
           <i class="plan" style="width:${clamp(100 * plan / tgt, 0, 100)}%"></i>
           ${withDone ? `<i class="done" style="width:${clamp(100 * done / tgt, 0, 100)}%"></i>` : ''}
@@ -864,6 +957,11 @@
       const isNow = now >= t.start && now < t.start + Math.max(t.dur, 1);
       const meta = [
         b ? `<span class="chip">${esc(b.name)}</span>` : '',
+        ...taskTms(t).map(m => {
+          const v = t.values?.[m.id];
+          if (kind === 'day' && hasValue(v)) return `<span class="tm-val">${num(v)} ${esc(m.unit || m.name)}</span>`;
+          return `<span class="tm-val empty">${esc(m.name)}${kind === 'day' ? ' —' : ''}</span>`;
+        }),
         kind === 'day' && t.notes ? `<span class="note-prev">${esc(t.notes.split('\n')[0])}</span>` : '',
       ].join('');
       return `<li class="task${kind === 'routine' ? ' routine' : ''}${t.done ? ' done' : ''}${isNow ? ' now' : ''}" style="${c}" data-id="${esc(t.id)}">
@@ -1006,6 +1104,38 @@
     return { tally, current, best, total: days.length };
   }
 
+  // +1% per day lived hard, -1% per day lived soft, complacent days count 0.
+  const RANGES = [['start', 'Since start'], ['7', '7 days'], ['30', '30 days'], ['365', 'Year'], ['custom', 'Custom']];
+  function improvedFrom() {
+    const r = state.ui.impRange || 'start', today = todayKey();
+    if (r === 'custom' && state.ui.impFrom) return state.ui.impFrom;
+    if (/^\d+$/.test(r)) return addDays(today, -(+r - 1));
+    return state.startDate || gradedDays()[0]?.k || today;
+  }
+  const fmtDay = k => dateOf(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: dateOf(k).getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+
+  function renderImproved() {
+    const from = improvedFrom(), today = todayKey(), r = state.ui.impRange || 'start';
+    const days = gradedDays().filter(d => d.k >= from && d.k <= today);
+    const c = { green: 0, yellow: 0, red: 0 };
+    for (const d of days) c[d.sc.status]++;
+    const score = c.green - c.red;
+    const cls = score > 0 ? 'up' : score < 0 ? 'down' : '';
+    return `
+      <section class="card ov-imp">
+        <div class="imp-top">
+          <div><span class="imp-big ${cls}">${score > 0 ? '+' : score < 0 ? '−' : ''}${Math.abs(score)}%</span><span class="ov-lbl">Improved</span></div>
+          <label class="imp-start"><span>Started living hard</span>
+            <input class="input" type="date" data-act="startDate" value="${esc(state.startDate || '')}" max="${today}"></label>
+        </div>
+        <div class="imp-ranges" role="group" aria-label="Range">
+          ${RANGES.map(([v, l]) => `<button data-range="${v}" aria-pressed="${r === v}">${l}</button>`).join('')}
+        </div>
+        ${r === 'custom' ? `<label class="imp-custom">From <input class="input" type="date" data-act="impFrom" value="${esc(from)}" max="${today}"></label>` : ''}
+        <p class="imp-note">${fmtDay(from)} – today · ${c.green} hard (+${c.green}) · ${c.yellow} complacent · ${c.red} soft (−${c.red})</p>
+      </section>`;
+  }
+
   function renderOverview() {
     const { tally, current, best, total } = lifeStats();
     const [y, m] = view.month.split('-').map(Number);
@@ -1027,6 +1157,7 @@
     }
     const pct = total ? Math.round(100 * tally.green / total) : 0;
     return `
+      ${renderImproved()}
       <div class="ov-hero card">
         <div class="ov-streak">
           <span class="ov-big">${current}</span>
@@ -1097,8 +1228,9 @@
   }));
 
   app.addEventListener('click', e => {
-    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode], [data-open]');
+    const el = e.target.closest('[data-act], [data-date], [data-dow], [data-mode], [data-open], [data-range]');
     if (!el || drag) return;
+    if (el.dataset.range) { state.ui.impRange = el.dataset.range; persist(); render(); return; }
     if (el.dataset.open) { view.date = el.dataset.open; view.tab = 'day'; render(); window.scrollTo({ top: 0 }); return; }
     if (el.dataset.date) { view.date = el.dataset.date; render(); return; }
     if (el.dataset.dow) { view.dow = +el.dataset.dow; render(); return; }
@@ -1143,7 +1275,7 @@
       case 'saveRoutine': {
         const dow = dateOf(view.date).getDay();
         const prev = state.routines[dow];
-        state.routines[dow] = dayTasks(view.date).map(({ id, title, start, dur, bucketId }) => ({ id, title, start, dur, bucketId })).sort(byStart);
+        state.routines[dow] = dayTasks(view.date).map(({ id, title, start, dur, bucketId, metricIds }) => ({ id, title, start, dur, bucketId, ...(metricIds?.length ? { metricIds } : {}) })).sort(byStart);
         commit();
         toast(`Saved as your ${DOW[dow]} routine.`, () => { state.routines[dow] = prev; commit(); });
         break;
@@ -1188,6 +1320,14 @@
       const t = dayMut(view.date).find(x => x.id === id);
       if (t) t.done = el.checked;
       commit();
+      // Checking off a task that tracks something opens it so you can log the number.
+      if (t?.done && taskTms(t).some(m => !hasValue(t.values?.[m.id]))) openTask(currentCtx(), id, true);
+    } else if (el.dataset.act === 'startDate') {
+      state.startDate = el.value || null;
+      commit();
+    } else if (el.dataset.act === 'impFrom' && el.value) {
+      state.ui.impFrom = el.value;
+      commit();
     } else if (el.dataset.act === 'copyFrom' && el.value !== '') {
       const src = +el.value, dow = view.dow, prev = state.routines[dow];
       state.routines[dow] = state.routines[src].map(t => ({ ...t, id: uid() }));
@@ -1206,7 +1346,58 @@
     sel.value = bucketOf(value) ? value : '';
   }
 
-  function openTask(ctx, id) {
+  // Metrics attached in the open editor, and the values typed for them.
+  let draft = { ids: [], values: {} };
+
+  function renderTm() {
+    const isDay = editing.ctx.kind === 'day';
+    $('#tmList').innerHTML = draft.ids.map(id => {
+      const m = taskMetricOf(id);
+      if (!m) return '';
+      const v = draft.values[id];
+      return `<div class="tm-row" data-tm="${esc(id)}">
+        <span class="tm-name">${esc(m.name)}</span>
+        ${isDay ? `<input class="input" type="number" inputmode="decimal" min="0" step="any" value="${hasValue(v) ? esc(v) : ''}" data-tm-val aria-label="${esc(m.name)}"><em>${esc(m.unit)}</em>` : `<em>${esc(m.unit)}</em>`}
+        <button type="button" class="x" data-tm-del aria-label="Stop tracking ${esc(m.name)} on this task">✕</button>
+      </div>`;
+    }).join('');
+    const avail = state.taskMetrics.filter(m => !draft.ids.includes(m.id));
+    $('#tmAddSel').innerHTML = `<option value="">${draft.ids.length ? '+ Track another…' : '+ Add a metric…'}</option>` +
+      avail.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('') +
+      '<option value="__new">New metric…</option>';
+  }
+  $('#tmAddSel').addEventListener('change', e => {
+    const v = e.target.value;
+    if (v === '__new') { $('#tmNew').hidden = false; $('#tmNewName').focus(); }
+    else if (v) { draft.ids.push(v); renderTm(); }
+    e.target.value = '';
+  });
+  $('#tmNewAdd').addEventListener('click', () => {
+    const name = $('#tmNewName').value.trim();
+    if (!name) { $('#tmNewName').focus(); return; }
+    const m = { id: uid(), name, unit: $('#tmNewUnit').value.trim() };
+    state.taskMetrics.push(m);
+    persist();
+    draft.ids.push(m.id);
+    $('#tmNewName').value = $('#tmNewUnit').value = '';
+    $('#tmNew').hidden = true;
+    renderTm();
+  });
+  $('#tmNewName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#tmNewAdd').click(); } });
+  $('#tmNewUnit').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#tmNewAdd').click(); } });
+  $('#tmList').addEventListener('input', e => {
+    const row = e.target.closest('[data-tm]');
+    if (row && e.target.matches('[data-tm-val]')) draft.values[row.dataset.tm] = e.target.value === '' ? '' : +e.target.value;
+  });
+  $('#tmList').addEventListener('click', e => {
+    const row = e.target.closest('[data-tm-del]')?.closest('[data-tm]');
+    if (!row) return;
+    draft.ids = draft.ids.filter(x => x !== row.dataset.tm);
+    delete draft.values[row.dataset.tm];
+    renderTm();
+  });
+
+  function openTask(ctx, id, focusMetric) {
     const list = listFor(ctx, false);
     const t = id ? list.find(x => x.id === id) : null;
     editing = { ctx, id: t ? t.id : null };
@@ -1224,9 +1415,13 @@
     form.notes.value = t?.notes ?? '';
     $('#dayOnly').hidden = !isDay;
     $('#delTask').hidden = !t;
+    draft = { ids: [...(t?.metricIds || [])].filter(taskMetricOf), values: { ...(t?.values || {}) } };
+    $('#tmNew').hidden = true;
+    renderTm();
     updateEnds();
     dlg.showModal();
     if (!t) form.title.focus();
+    else if (focusMetric) [...$('#tmList').querySelectorAll('[data-tm-val]')].find(i => i.value === '')?.focus();
   }
 
   function updateEnds() {
@@ -1250,7 +1445,12 @@
     const list = listFor(ctx, true);
     const start = fromHHMM(form.start.value), dur = clamp(Math.round(+form.dur.value || 0), 0, 1440);
     const fields = { title: form.title.value.trim() || 'Untitled', bucketId: form.bucket.value, start, dur };
-    if (ctx.kind === 'day') Object.assign(fields, { done: form.done.checked, notes: form.notes.value.trim() });
+    fields.metricIds = [...draft.ids];
+    if (ctx.kind === 'day') {
+      const values = {};
+      for (const mid of draft.ids) if (hasValue(draft.values[mid])) values[mid] = +draft.values[mid];
+      Object.assign(fields, { done: form.done.checked, notes: form.notes.value.trim(), values });
+    }
     if (id) {
       const t = list.find(x => x.id === id);
       if (t) {
@@ -1283,7 +1483,10 @@
   const setDlg = $('#setDlg'), setBody = $('#setBody');
   const PALETTE = ['#7c5cd6', '#2f6fd6', '#2e9d57', '#d64545', '#e07a1f', '#1b9aaa', '#b8911a', '#c2447a', '#5b7083'];
 
-  function openSettings() { renderSettings(); setDlg.showModal(); }
+  function openSettings() {
+    renderSettings(); setDlg.showModal();
+    if (!sync) fetch(API + '/api/me').then(r => r.json()).then(b => { if (b.signupCodeRequired && !syncUi.codeRequired) { syncUi.codeRequired = true; renderSyncSection(); } }).catch(() => {});
+  }
   function renderSettings() {
     const bucketsHtml = state.buckets.map(b => `
       <div class="brow" data-bid="${esc(b.id)}">
@@ -1298,18 +1501,21 @@
           <button class="x" data-del-goal aria-label="Delete goal">✕</button>
         </div>
         <div class="brow">
-          <input class="input num" type="number" min="1" step="${g.metric === 'count' ? 1 : 5}" value="${g.target}" data-f="target" aria-label="Target">
+          <input class="input num" type="number" min="1" step="${g.metric === 'minutes' ? 5 : 1}" value="${g.target}" data-f="target" aria-label="Target">
           <select class="input" data-f="metric" aria-label="Measured in">
             <option value="minutes" ${g.metric === 'minutes' ? 'selected' : ''}>minutes</option>
             <option value="count" ${g.metric === 'count' ? 'selected' : ''}>tasks done</option>
+            ${state.taskMetrics.map(m => `<option value="tm:${esc(m.id)}" ${g.metric === 'tm:' + m.id ? 'selected' : ''}>${esc(m.unit || m.name)} (${esc(m.name)})</option>`).join('')}
           </select>
           <span class="empty-note" data-role="hr">${g.metric === 'minutes' ? '= ' + fmtDur(g.target) : ''}</span>
         </div>
+        ${tmIdOf(g) ? '<p class="bnote">Adds up what you log on any task. Pick buckets to count only those.</p>' : ''}
         <div class="bpick">${state.buckets.map(b => `
           <label style="--c:${esc(b.color)}"><input type="checkbox" value="${esc(b.id)}" data-f="bucket" ${g.bucketIds.includes(b.id) ? 'checked' : ''}><span class="chip">${esc(b.name)}</span></label>`).join('')}
         </div>
       </div>`).join('');
     setBody.innerHTML = `
+      <section class="set-sec" id="syncSec"></section>
       <section class="set-sec">
         <h4>Buckets</h4>
         <p>Every task can sit in one bucket. Colors carry through the list and timeline.</p>
@@ -1318,9 +1524,20 @@
       </section>
       <section class="set-sec">
         <h4>Daily goals</h4>
-        <p>A goal adds up the checked-off tasks in the buckets you pick — minutes spent, or how many were done. Pick more than one bucket to combine them, like indoor + outside for “Exercise”.</p>
+        <p>A goal adds up the checked-off tasks in the buckets you pick — minutes spent, or how many were done. Pick more than one bucket to combine them, like indoor + outside for “Exercise”. A goal can also total a task metric, like pages read.</p>
         ${goalsHtml}
         <button class="btn small" id="addGoal">+ Add goal</button>
+      </section>
+      <section class="set-sec">
+        <h4>Task metrics</h4>
+        <p>Extra numbers a task can track, like pages read. Attach one to a task from the task’s editor; you’ll be asked for it when you check the task off.</p>
+        ${state.taskMetrics.map(m => `
+          <div class="brow" data-tmid="${esc(m.id)}">
+            <input class="input" value="${esc(m.name)}" data-t="name" aria-label="Metric name">
+            <input class="input" value="${esc(m.unit)}" data-t="unit" aria-label="Unit" style="width:90px;flex:none">
+            <button class="x" data-del-tm aria-label="Delete ${esc(m.name)}">✕</button>
+          </div>`).join('') || '<p class="empty-note">None yet.</p>'}
+        <button class="btn small" id="addTm">+ Add metric</button>
       </section>
       <section class="set-sec" id="trackSec">
         <h4>Water</h4>
@@ -1368,16 +1585,21 @@
       </section>
       <section class="set-sec">
         <h4>Your data</h4>
-        <p>Everything lives in this browser only. Export a backup now and then, or to move it to another device.</p>
+        <p>${sync ? 'Synced to your account, and kept in this browser too.' : 'Everything lives in this browser only until you sign in above.'} Export saves a copy as a file.</p>
         <div class="foot-actions" style="margin:0">
           <button class="btn small" id="exportBtn">Export</button>
           <button class="btn small" id="importBtn">Import</button>
           <button class="btn small ghost danger" id="wipeBtn">Start over</button>
         </div>
       </section>`;
+    renderSyncSection();
   }
 
+  setBody.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.target.id === 'syncPass' || e.target.id === 'syncName' || e.target.id === 'syncCode')) signIn(false);
+  });
   setBody.addEventListener('input', e => {
+    if (e.target.closest('#syncSec')) return;
     const el = e.target, tr = state.tracking;
     if (el.dataset.w) {
       if (el.dataset.w === 'target') tr.water.target = Math.max(0, +el.value || 0);
@@ -1394,6 +1616,11 @@
       if (el.dataset.m === 'unit') m.unit = el.value;
       if (el.dataset.m === 'target') m.target = Math.max(0, +el.value || 0);
       if (el.dataset.m === 'rule') { m.rule = el.value; persist(); renderSettings(); return; }
+      persist(); return;
+    }
+    if (el.dataset.t) {
+      const m = taskMetricOf(el.closest('[data-tmid]').dataset.tmid);
+      if (m) m[el.dataset.t] = el.value;
       persist(); return;
     }
     if (el.dataset.c) {
@@ -1431,6 +1658,7 @@
   });
   setBody.addEventListener('click', e => {
     const t = e.target;
+    if (t.closest('#syncSec')) { const b = t.closest('button'); if (b) syncClick(b); return; }
     if (t.closest('[data-del-bucket]')) {
       const id = t.closest('[data-bid]').dataset.bid;
       state.buckets = state.buckets.filter(b => b.id !== id);
@@ -1444,6 +1672,17 @@
       state.buckets.push({ id: uid(), name: 'New bucket', color: PALETTE[state.buckets.length % PALETTE.length] });
       persist(); renderSettings();
       setBody.querySelector('[data-bid]:last-of-type [data-f="name"]')?.select();
+    } else if (t.closest('[data-del-tm]')) {
+      const id = t.closest('[data-tmid]').dataset.tmid, m = taskMetricOf(id);
+      const using = state.goals.filter(g => g.metric === 'tm:' + id);
+      if (!confirm(`Delete “${m.name}”? Tasks stop tracking it${using.length ? ` and the goal${using.length === 1 ? '' : 's'} ${using.map(g => '“' + g.name + '”').join(', ')} will be removed` : ''}. Numbers already logged stay in your export.`)) return;
+      state.taskMetrics = state.taskMetrics.filter(x => x.id !== id);
+      state.goals = state.goals.filter(g => g.metric !== 'tm:' + id);
+      persist(); renderSettings();
+    } else if (t.id === 'addTm') {
+      state.taskMetrics.push({ id: uid(), name: 'New metric', unit: '' });
+      persist(); renderSettings();
+      [...setBody.querySelectorAll('[data-tmid] [data-t="name"]')].at(-1)?.select();
     } else if (t.id === 'addGoal') {
       state.goals.push({ id: uid(), name: 'New goal', bucketIds: [], metric: 'minutes', target: 30 });
       persist(); renderSettings();
@@ -1494,6 +1733,238 @@
   setDlg.addEventListener('close', render);
   $('#settingsBtn').addEventListener('click', openSettings);
 
+  // ---------- sync ----------
+  // Signs in against the Sunday Slip Worker (same accounts) and keeps one copy
+  // of the planner per account. Each device keeps working offline; changes
+  // are merged three ways against the last copy both sides agreed on, so two
+  // devices editing different days (or different settings) never clobber
+  // each other. Per-device view settings (state.ui) are not synced.
+  const API = 'https://sunday-slip.tonycorrales34.workers.dev';
+  const SYNC = 'live-hard.sync', SYNC_BASE = 'live-hard.sync.base';
+  let sync = (() => { try { return JSON.parse(localStorage.getItem(SYNC)) || null; } catch { return null; } })();
+  let syncBase = (() => { try { return localStorage.getItem(SYNC_BASE); } catch { return null; } })();
+  const syncUi = { status: sync ? 'idle' : 'off', msg: '', choice: null, codeRequired: false, busy: false };
+
+  const shareable = st => { const { ui, ...rest } = st; return rest; };
+  function saveSync() {
+    try {
+      if (sync) localStorage.setItem(SYNC, JSON.stringify(sync)); else localStorage.removeItem(SYNC);
+      if (syncBase != null) localStorage.setItem(SYNC_BASE, syncBase); else localStorage.removeItem(SYNC_BASE);
+    } catch {}
+  }
+  async function api(path, opts = {}) {
+    const res = await fetch(API + path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', ...(sync?.token ? { Authorization: 'Bearer ' + sync.token } : {}) },
+    });
+    let body = null;
+    try { body = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, body: body || {} };
+  }
+
+  // Three-way merge: whatever changed on only one side since the last agreed
+  // copy wins; objects merge key by key, and lists of items with an id (tasks,
+  // goals, buckets…) or a timestamp (water) merge item by item. Only a true
+  // clash — the same field changed on both devices — goes to this device.
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  function mergeVal(b, l, r) {
+    if (same(l, r)) return l;
+    if (same(l, b)) return r;
+    if (same(r, b)) return l;
+    if (isObj(l) && isObj(r)) {
+      const out = {};
+      for (const k of new Set([...Object.keys(l), ...Object.keys(r)])) {
+        const v = mergeVal(isObj(b) ? b[k] : undefined, l[k], r[k]);
+        if (v !== undefined) out[k] = v;
+      }
+      return out;
+    }
+    if (Array.isArray(l) && Array.isArray(r)) {
+      const all = [...l, ...r];
+      const key = all.length && all.every(x => isObj(x) && 'id' in x) ? 'id' : all.length && all.every(x => isObj(x) && 't' in x) ? 't' : null;
+      if (!key) return l;
+      const idx = arr => new Map((Array.isArray(arr) ? arr : []).filter(isObj).map(x => [x[key], x]));
+      const bm = idx(b), lm = idx(l), rm = idx(r), out = [];
+      for (const id of new Set([...lm.keys(), ...rm.keys()])) {
+        const bv = bm.get(id), lv = lm.get(id), rv = rm.get(id);
+        if (lv === undefined && bv !== undefined && same(rv, bv)) continue; // deleted here
+        if (rv === undefined && bv !== undefined && same(lv, bv)) continue; // deleted there
+        const v = lv === undefined ? rv : rv === undefined ? lv : mergeVal(bv, lv, rv);
+        if (v !== undefined) out.push(v);
+      }
+      return out;
+    }
+    return l;
+  }
+  const merge3 = (base, local, remote) => mergeVal(base, local, remote);
+
+  function setStatus(status, msg = '') {
+    syncUi.status = status; syncUi.msg = msg;
+    const dot = $('#syncDot');
+    dot.hidden = !sync;
+    dot.className = 'sdot ' + status;
+    if (setDlg.open) renderSyncSection();
+  }
+
+  // Adopt a copy from the server: merge it with local edits made since the
+  // last agreed copy, then push if the result differs from what the server has.
+  function adopt(remote) {
+    const base = syncBase ? JSON.parse(syncBase) : null;
+    const local = shareable(state);
+    const merged = base ? merge3(base, local, remote.data) : remote.data;
+    const busy = document.activeElement?.closest?.('#app') && document.activeElement.matches('input, textarea, select');
+    state = normalize({ ...merged, ui: state.ui });
+    for (const r of Object.values(state.days)) r.tasks?.sort(byStart);
+    for (let d = 0; d < 7; d++) state.routines[d].sort(byStart);
+    sync.rev = remote.rev; sync.at = remote.at;
+    syncBase = JSON.stringify(remote.data);
+    saveSync();
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {}
+    // Don't rebuild the page under someone mid-typing; the next render picks it up.
+    if (!busy && !drag) render();
+  }
+
+  let pushTimer = null, inflight = false;
+  function schedulePush() {
+    if (!sync || syncUi.choice) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(push, 1200);
+  }
+  async function push(attempt = 0) {
+    if (!sync || syncUi.choice) return;
+    const data = shareable(state), raw = JSON.stringify(data);
+    if (raw === syncBase) { setStatus('ok'); return; }
+    if (inflight) { schedulePush(); return; }
+    inflight = true; setStatus('busy');
+    try {
+      const r = await api('/api/planner', { method: 'POST', body: JSON.stringify({ baseRev: sync.rev || 0, data }) });
+      if (r.ok) {
+        sync.rev = r.body.rev; sync.at = r.body.at; syncBase = raw; saveSync(); setStatus('ok');
+      } else if (r.status === 409 && attempt < 3) {
+        inflight = false;
+        if (r.body.data) adopt(r.body); else { sync.rev = r.body.rev || 0; saveSync(); }
+        return push(attempt + 1);
+      } else if (r.status === 401) {
+        signedOut('Your session ended — sign in again to keep syncing.');
+      } else if (r.status === 404) {
+        setStatus('error', 'The sync server hasn’t been updated yet (redeploy worker.js).');
+      } else {
+        setStatus('error', r.body.error || `Sync failed (${r.status}).`);
+      }
+    } catch { setStatus('offline', 'Offline — changes will sync when you’re back online.'); }
+    finally { inflight = false; }
+  }
+  async function pull() {
+    if (!sync || syncUi.choice || inflight) return;
+    try {
+      const r = await api('/api/planner');
+      if (r.status === 401) return signedOut('Your session ended — sign in again to keep syncing.');
+      if (r.status === 404) return setStatus('error', 'The sync server hasn’t been updated yet (redeploy worker.js).');
+      if (!r.ok) return setStatus('error', r.body.error || `Sync failed (${r.status}).`);
+      if (r.body.data && r.body.rev !== sync.rev) adopt(r.body);
+      await push();
+    } catch { setStatus('offline', 'Offline — changes will sync when you’re back online.'); }
+  }
+  function signedOut(msg) {
+    sync = null; syncBase = null; saveSync();
+    syncUi.choice = null;
+    setStatus('off', msg);
+    if (msg) toast(msg);
+  }
+
+  async function signIn(create) {
+    const name = $('#syncName')?.value.trim(), password = $('#syncPass')?.value || '', code = $('#syncCode')?.value || '';
+    if (!name || !password) { setStatus('off', 'Enter a name and password.'); return; }
+    syncUi.busy = true; setStatus('off', create ? 'Creating account…' : 'Signing in…');
+    try {
+      const r = await fetch(API + (create ? '/api/register' : '/api/login'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: name, password, code }),
+      }).then(async x => ({ ok: x.ok, status: x.status, body: await x.json().catch(() => ({})) }));
+      if (!r.ok) {
+        if (create && r.status === 403 && /code/i.test(r.body.error || '')) syncUi.codeRequired = true;
+        syncUi.busy = false; setStatus('off', r.body.error || 'Couldn’t sign in.'); return;
+      }
+      sync = { token: r.body.token, user: r.body.user, rev: 0, at: null };
+      syncBase = null; saveSync();
+      const g = await api('/api/planner');
+      syncUi.busy = false;
+      if (g.status === 404) { setStatus('error', 'Signed in, but the sync server hasn’t been updated yet (redeploy worker.js).'); return; }
+      if (!g.ok) { setStatus('error', g.body.error || 'Couldn’t reach sync.'); return; }
+      const hasLocal = Object.keys(state.days).length > 0;
+      if (!g.body.data) { await push(); toast(`Signed in as ${sync.user.name}. This device is now synced.`); }
+      else if (!hasLocal) { adopt(g.body); setStatus('ok'); toast(`Signed in as ${sync.user.name}. Loaded your planner.`); }
+      else { syncUi.choice = g.body; setStatus('idle', ''); }
+    } catch { syncUi.busy = false; setStatus('off', 'Can’t reach the server — check your connection.'); }
+  }
+
+  function renderSyncSection() {
+    const sec = $('#syncSec');
+    if (!sec) return;
+    const msg = syncUi.msg ? `<p class="sync-msg ${syncUi.status}">${esc(syncUi.msg)}</p>` : '';
+    if (!sync) {
+      // Keep what was typed when the form redraws (e.g. after a wrong password).
+      const kept = { name: $('#syncName')?.value || '', code: $('#syncCode')?.value || '' };
+      sec.innerHTML = `<h4>Sync</h4>
+        <p>Sign in to keep your phone and computer in step. Uses your Sunday Slip account — or create one.</p>
+        <div class="brow"><input class="input" id="syncName" placeholder="Name" autocomplete="username" autocapitalize="off" value="${esc(kept.name)}"></div>
+        <div class="brow"><input class="input" id="syncPass" type="password" placeholder="Password" autocomplete="current-password"></div>
+        ${syncUi.codeRequired ? `<div class="brow"><input class="input" id="syncCode" placeholder="Signup code (new accounts only)" value="${esc(kept.code)}"></div>` : ''}
+        <div class="foot-actions" style="margin:0">
+          <button class="btn small primary" id="syncIn" ${syncUi.busy ? 'disabled' : ''}>Sign in</button>
+          <button class="btn small" id="syncUp" ${syncUi.busy ? 'disabled' : ''}>Create account</button>
+        </div>${msg}`;
+      return;
+    }
+    if (syncUi.choice) {
+      const n = Object.keys(syncUi.choice.data.days || {}).length;
+      sec.innerHTML = `<h4>Sync</h4>
+        <p>Signed in as <b>${esc(sync.user.name)}</b>. Your account already has a planner (${n} day${n === 1 ? '' : 's'} logged${syncUi.choice.at ? `, last saved ${esc(new Date(syncUi.choice.at).toLocaleString())}` : ''}), and so does this device. Which one should both use from now on?</p>
+        <div class="foot-actions" style="margin:0">
+          <button class="btn small primary" id="keepRemote">Use the account’s</button>
+          <button class="btn small" id="keepLocal">Use this device’s</button>
+          <button class="btn small ghost" id="syncOut">Cancel</button>
+        </div>`;
+      return;
+    }
+    const when = sync.at ? new Date(sync.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+    const label = { ok: 'Synced', busy: 'Syncing…', offline: 'Offline', error: 'Not synced', idle: 'Synced' }[syncUi.status] || '';
+    sec.innerHTML = `<h4>Sync</h4>
+      <p>Signed in as <b>${esc(sync.user.name)}</b> · <span class="sync-state ${syncUi.status}">${label}</span> · last saved ${esc(when)}</p>
+      <div class="foot-actions" style="margin:0">
+        <button class="btn small" id="syncNow">Sync now</button>
+        <button class="btn small ghost" id="syncOut">Sign out</button>
+      </div>${msg}`;
+  }
+
+  async function syncClick(t) {
+    if (t.id === 'syncIn') return signIn(false);
+    if (t.id === 'syncUp') return signIn(true);
+    if (t.id === 'syncNow') { await pull(); return; }
+    if (t.id === 'keepRemote') {
+      const remote = syncUi.choice; syncUi.choice = null; syncBase = null;
+      adopt(remote); setStatus('ok'); toast('Loaded your planner from your account.');
+      return;
+    }
+    if (t.id === 'keepLocal') {
+      sync.rev = syncUi.choice.rev; syncUi.choice = null; syncBase = null; saveSync();
+      await push(); toast('Your account now has this device’s planner.');
+      return;
+    }
+    if (t.id === 'syncOut') {
+      const token = sync?.token;
+      if (token && !syncUi.choice) fetch(API + '/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }).catch(() => {});
+      signedOut('');
+      renderSyncSection();
+    }
+  }
+
+  // Pull when the app comes back to the foreground, and every minute while open.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); });
+  window.addEventListener('online', () => pull());
+  setInterval(() => { if (document.visibilityState === 'visible') pull(); }, 60000);
+
   // ---------- toast ----------
   let toastTimer;
   function toast(msg, undo) {
@@ -1515,6 +1986,7 @@
   }, 60000);
 
   render();
+  if (sync) { setStatus('idle'); pull(); }
 })();
 </script>
 </body>

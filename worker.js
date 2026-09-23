@@ -397,7 +397,7 @@ async function handle(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   if (path === "/" || path === "/api") {
-    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/leaderboard"] });
+    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/leaderboard", "/api/planner"] });
   }
 
   /* ---- accounts ---- */
@@ -458,6 +458,38 @@ async function handle(request, env) {
   if (path === "/api/me" && request.method === "GET") {
     const user = await whoIs(env, request, url);
     return json({ user, signupCodeRequired: !!env.SIGNUP_CODE });
+  }
+
+  /* ---- Live Hard planner sync ----
+     One JSON document per account: { rev, at, data }. A save names the rev
+     it was based on; if another device saved in between, the save is refused
+     with the current copy (409) so the client can merge and try again rather
+     than silently overwriting the other device's day. */
+  if (path === "/api/planner") {
+    const user = await whoIs(env, request, url);
+    if (!user) return needAuth();
+    const key = `planner:${user.id}`;
+
+    if (request.method === "GET") {
+      return json((await env.PICKS.get(key, "json")) || { rev: 0, at: null, data: null });
+    }
+
+    if (request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
+      const data = body && body.data;
+      if (!data || typeof data !== "object" || Array.isArray(data)) return json({ error: "bad planner data" }, 400);
+      if (JSON.stringify(data).length > 5000000) return json({ error: "Planner data is too large to sync." }, 413);
+
+      const cur = await env.PICKS.get(key, "json");
+      const rev = cur ? cur.rev : 0;
+      if (Number(body.baseRev) !== rev) {
+        return json({ conflict: true, ...(cur || { rev: 0, at: null, data: null }) }, 409);
+      }
+      const doc = { rev: rev + 1, at: new Date().toISOString(), data };
+      await env.PICKS.put(key, JSON.stringify(doc));
+      return json({ rev: doc.rev, at: doc.at });
+    }
   }
 
   /* GET /api/week?season=&week=
