@@ -425,6 +425,20 @@
   .sum-res.st-green { color: var(--green); } .sum-res.st-red { color: var(--red); }
   .sum-res.st-yellow { color: color-mix(in srgb, var(--yellow) 75%, var(--ink)); }
   .sum-extra { color: var(--ink-3); font-size: 13px; }
+  .sum-details { background: var(--surface-2); border-radius: 12px; padding: 10px 12px 12px; }
+  .det-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .det-head h5 { margin: 0; }
+  .det-field { display: block; margin: 8px 0 0; }
+  .det-field span, .det-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .det-field span::before, .det-name::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--ink-3)); }
+  .det-field textarea { min-height: 0; background: var(--surface); padding: 7px 10px; font-size: 14px; }
+  .det-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+  .det-row { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .det-row:last-child { border-bottom: 0; }
+  .det-text { display: block; padding-left: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .det-text em { color: var(--ink-3); font-style: normal; }
+  .dchk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); flex: none; }
+  .dchk input { accent-color: var(--accent); margin: 0; }
 
   /* Water */
   .goal.water { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -689,6 +703,12 @@
       for (const [k, rec] of Object.entries(s.days)) if (k >= today && rec.tasks) rec.tasks.forEach(attach);
       s.tracking.v = 3;
     }
+    // v4: which buckets and task metrics the day summary asks details for.
+    if (s.tracking.v < 4) {
+      for (const b of s.buckets) if (['faith', 'career', 'indoor', 'outdoor'].includes(b.id)) b.details = true;
+      for (const m of s.taskMetrics) if (m.id === 'pages') m.details = true;
+      s.tracking.v = 4;
+    }
     return s;
   }
 
@@ -906,7 +926,44 @@
     return { sc, extras, hit: sc.items.length - sc.short.length };
   }
 
-  function openSummary(k) {
+  // The areas a day's summary asks for details on: buckets and task metrics
+  // marked "Details" in settings, when the day has a task in / tracking them.
+  function detailAreas(k) {
+    const tasks = dayTasks(k), out = [];
+    const notesOf = ts => ts.filter(t => t.done && t.notes).map(t => t.notes.split('\n')[0]).join('; ');
+    for (const b of state.buckets) {
+      if (!b.details) continue;
+      const ts = tasks.filter(t => t.bucketId === b.id);
+      if (ts.length) out.push({ key: 'b:' + b.id, name: b.name, color: b.color, prefill: notesOf(ts), hint: b.id === 'indoor' ? 'e.g. Push day' : b.id === 'outdoor' ? 'e.g. 3 mile run' : '' });
+    }
+    for (const m of state.taskMetrics) {
+      if (!m.details) continue;
+      const ts = tasks.filter(t => (t.metricIds || []).includes(m.id));
+      if (ts.length) out.push({ key: 'tm:' + m.id, name: m.name, color: '', prefill: notesOf(ts), hint: m.id === 'pages' ? 'e.g. Romans 5–6; Atomic Habits ch. 3' : '' });
+    }
+    return out;
+  }
+  let sumEditing = false;
+
+  function renderDetails(k) {
+    const areas = detailAreas(k);
+    if (!areas.length) return '';
+    const rec = state.days[k] || {}, saved = rec.details || {};
+    const editing = sumEditing || !rec.detailsAt;
+    if (editing) {
+      return `<form class="sum-group sum-details" id="detailForm"><h5>Details</h5>
+        ${areas.map(a => `<label class="det-field" style="${a.color ? `--c:${esc(a.color)}` : ''}"><span>${esc(a.name)}</span>
+          <textarea class="input" rows="2" name="${esc(a.key)}" placeholder="${esc(a.hint || 'What did you do?')}">${esc(saved[a.key] ?? a.prefill)}</textarea></label>`).join('')}
+        <div class="det-actions">${rec.detailsAt ? '<button type="button" class="btn small ghost" id="detCancel">Cancel</button>' : ''}<button class="btn small primary" type="submit">Submit details</button></div>
+      </form>`;
+    }
+    return `<div class="sum-group sum-details"><div class="det-head"><h5>Details</h5><button class="btn small" id="detEdit">Edit</button></div>
+      ${areas.map(a => `<div class="det-row" style="${a.color ? `--c:${esc(a.color)}` : ''}"><span class="det-name">${esc(a.name)}</span><span class="det-text">${saved[a.key] ? esc(saved[a.key]) : '<em>—</em>'}</span></div>`).join('')}
+    </div>`;
+  }
+
+  function openSummary(k, keepOpen) {
+    if (!keepOpen) sumEditing = false;
     const { sc, extras, hit } = summaryData(k);
     $('#sumTitle').textContent = dayTitle(k);
     const groups = GROUPS.map(([kind, label]) => {
@@ -920,12 +977,17 @@
         </div>`).join('')}</div>`;
     }).join('');
     const missed = sc.short.map(i => `${esc(i.name)} <small>(${esc(i.miss)})</small>`).join('; ');
+    // Not yet described: ask first, right under the result. Afterwards the
+    // details sit below the goals.
+    const details = renderDetails(k), fresh = !state.days[k]?.detailsAt;
     $('#sumBody').innerHTML = `
       <div class="sum-result st-${sc.status}">
         <span class="sum-big">${hit}/${sc.items.length}</span>
         <span><b>${STATUS_TITLE[sc.status]}</b><small>Goals hit</small></span>
       </div>
+      ${fresh ? details : ''}
       ${groups}
+      ${fresh ? '' : details}
       <div class="sum-foot">
         <p><b>Goals hit:</b> ${hit}/${sc.items.length}</p>
         <p><b>Day result:</b> <span class="sum-res st-${sc.status}">${STATUS_LABEL[sc.status]}</span></p>
@@ -933,8 +995,29 @@
         ${extras.map(x => `<p class="sum-extra">${esc(x)}</p>`).join('')}
       </div>`;
     $('#sumDlg').dataset.key = k;
-    $('#sumDlg').showModal();
+    if (!$('#sumDlg').open) $('#sumDlg').showModal();
   }
+
+  $('#sumBody').addEventListener('submit', e => {
+    if (e.target.id !== 'detailForm') return;
+    e.preventDefault();
+    const k = $('#sumDlg').dataset.key, rec = dayRec(k);
+    rec.details = { ...(rec.details || {}) };
+    for (const el of e.target.querySelectorAll('textarea')) {
+      const v = el.value.trim();
+      if (v) rec.details[el.name] = v; else delete rec.details[el.name];
+    }
+    rec.detailsAt = Date.now();
+    sumEditing = false;
+    persist();
+    openSummary(k, true);
+    toast('Details saved.');
+  });
+  $('#sumBody').addEventListener('click', e => {
+    const k = $('#sumDlg').dataset.key;
+    if (e.target.id === 'detEdit') { sumEditing = true; openSummary(k, true); $('#detailForm textarea')?.focus(); }
+    if (e.target.id === 'detCancel') { sumEditing = false; openSummary(k, true); }
+  });
 
   function summaryText(k) {
     const { sc, extras, hit } = summaryData(k);
@@ -942,7 +1025,9 @@
     for (const i of sc.items) lines.push(`${i.name}: ${i.got} / ${i.want} ${i.ok ? '✅' : '❌'}`);
     lines.push('', `Goals hit: ${hit}/${sc.items.length}`, `Day result: ${STATUS_LABEL[sc.status]}`);
     lines.push(`Goals missed: ${sc.short.length ? sc.short.map(i => `${i.name} (${i.miss})`).join('; ') : 'none'}`);
-    return [...lines, ...extras].join('\n');
+    const saved = state.days[k]?.details || {};
+    const det = detailAreas(k).filter(a => saved[a.key]).map(a => `${a.name}: ${saved[a.key]}`);
+    return [...lines, ...(det.length ? ['', 'Details:', ...det] : []), '', ...extras].join('\n');
   }
 
   $('#closeSum').addEventListener('click', () => $('#sumDlg').close());
@@ -1614,6 +1699,7 @@
       <div class="brow" data-bid="${esc(b.id)}">
         <input type="color" value="${esc(b.color)}" data-f="color" aria-label="Color for ${esc(b.name)}">
         <input class="input" value="${esc(b.name)}" data-f="name" aria-label="Bucket name">
+        <label class="dchk" title="Ask for details in the day summary"><input type="checkbox" data-f="details" ${b.details ? 'checked' : ''}>Details</label>
         <button class="x" data-del-bucket aria-label="Delete ${esc(b.name)}">✕</button>
       </div>`).join('');
     const goalsHtml = state.goals.map(g => `
@@ -1640,7 +1726,7 @@
       <section class="set-sec" id="syncSec"></section>
       <section class="set-sec">
         <h4>Buckets</h4>
-        <p>Every task can sit in one bucket. Colors carry through the list and timeline.</p>
+        <p>Every task can sit in one bucket. Colors carry through the list and timeline. “Details” asks you to describe that bucket’s work in each day’s summary.</p>
         ${bucketsHtml}
         <button class="btn small" id="addBucket">+ Add bucket</button>
       </section>
@@ -1657,6 +1743,7 @@
           <div class="brow" data-tmid="${esc(m.id)}">
             <input class="input" value="${esc(m.name)}" data-t="name" aria-label="Metric name">
             <input class="input" value="${esc(m.unit)}" data-t="unit" aria-label="Unit" style="width:90px;flex:none">
+            <label class="dchk" title="Ask for details in the day summary"><input type="checkbox" data-t="details" ${m.details ? 'checked' : ''}>Details</label>
             <button class="x" data-del-tm aria-label="Delete ${esc(m.name)}">✕</button>
           </div>`).join('') || '<p class="empty-note">None yet.</p>'}
         <button class="btn small" id="addTm">+ Add metric</button>
@@ -1742,7 +1829,7 @@
     }
     if (el.dataset.t) {
       const m = taskMetricOf(el.closest('[data-tmid]').dataset.tmid);
-      if (m) m[el.dataset.t] = el.value;
+      if (m) m[el.dataset.t] = el.type === 'checkbox' ? el.checked : el.value;
       persist(); return;
     }
     if (el.dataset.c) {
@@ -1755,6 +1842,7 @@
     if (brow) {
       const b = bucketOf(brow.dataset.bid);
       if (b && (f === 'name' || f === 'color')) b[f] = el.value;
+      if (b && f === 'details') b.details = el.checked;
     } else if (grow) {
       const g = state.goals.find(x => x.id === grow.dataset.gid);
       if (!g) return;

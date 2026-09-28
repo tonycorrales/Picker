@@ -102,6 +102,11 @@ check off day by day. On GitHub Pages it's at
   done) has a "View summary" button: every goal with ✓ or ✕, what you did
   against the target, goals hit, the day's result, and what was missed and by
   how much — plus weight change and tasks done. "Copy as text" copies it.
+  The summary also asks for **details** on the day's work in buckets and task
+  metrics marked "Details" in settings (by default Faith, Career, Indoor and
+  Outside exercise, and Pages read) — e.g. "Push day", "3 mile run". Boxes
+  come prefilled with that bucket's task notes; once submitted they show as
+  text with an Edit button.
 - **Overview.** A month calendar colored by grade, the all-time tally — Days
   Lived Hard (green), Days Complacent (yellow), Days Lived Soft (red) — the
   current run of Consecutive Days Lived Hard, and the record run. Today still
