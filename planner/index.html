@@ -397,6 +397,35 @@
   .sync-state.ok, .sync-state.idle { color: var(--green); font-weight: 600; }
   .sync-state.error { color: var(--red); font-weight: 600; }
 
+  /* Day summary */
+  .status { position: relative; }
+  .status .sum-btn { margin-left: auto; font-weight: 600; }
+  .status .sum-line { flex-basis: 100%; }
+  .sum-result { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; }
+  .sum-result.st-green  { background: color-mix(in srgb, var(--green) 15%, var(--surface)); }
+  .sum-result.st-yellow { background: color-mix(in srgb, var(--yellow) 18%, var(--surface)); }
+  .sum-result.st-red    { background: color-mix(in srgb, var(--red) 14%, var(--surface)); }
+  .sum-big { font-size: 34px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .sum-result b { display: block; font-size: 16px; }
+  .sum-result small { color: var(--ink-2); font-size: 12px; }
+  .sum-group { margin-bottom: 12px; }
+  .sum-group h5 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); }
+  .sum-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .sum-mark { font-weight: 800; text-align: center; }
+  .sum-row.ok .sum-mark { color: var(--green); }
+  .sum-row.miss .sum-mark { color: var(--red); }
+  .sum-name { font-weight: 550; }
+  .sum-val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sum-val small { color: var(--ink-3); }
+  .sum-row.miss .sum-val b { color: var(--red); }
+  .sum-foot { margin-top: 14px; padding-top: 10px; border-top: 2px solid var(--line); font-size: 14px; }
+  .sum-foot p { margin: 0 0 6px; }
+  .sum-foot small { color: var(--ink-2); font-size: 13px; }
+  .sum-res { font-weight: 700; }
+  .sum-res.st-green { color: var(--green); } .sum-res.st-red { color: var(--red); }
+  .sum-res.st-yellow { color: color-mix(in srgb, var(--yellow) 75%, var(--ink)); }
+  .sum-extra { color: var(--ink-3); font-size: 13px; }
+
   /* Water */
   .goal.water { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
   .wbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
@@ -506,6 +535,14 @@
     <div class="dlg-head"><h3>Goals &amp; check-in</h3><button class="x" id="closeSet" aria-label="Close">✕</button></div>
     <div class="dlg-body" id="setBody"></div>
     <div class="dlg-foot"><span class="spacer"></span><button class="btn primary" id="doneSet">Done</button></div>
+  </div>
+</dialog>
+
+<dialog id="sumDlg">
+  <div class="dlg">
+    <div class="dlg-head"><h3 id="sumTitle">Day summary</h3><button class="x" id="closeSum" aria-label="Close">✕</button></div>
+    <div class="dlg-body" id="sumBody"></div>
+    <div class="dlg-foot"><button class="btn small" id="copySum">Copy as text</button><span class="spacer"></span><button class="btn primary" id="doneSum">Done</button></div>
   </div>
 </dialog>
 
@@ -707,14 +744,32 @@
   function dayScore(k) {
     const rec = state.days[k] || {}, tasks = dayTasks(k), tr = state.tracking;
     const items = [];
-    for (const g of state.goals) if (g.target > 0) items.push({ name: g.name, ok: goalProgress(g, tasks).done >= g.target });
-    if (tr.water.target > 0) items.push({ name: 'Water', ok: waterTotal(k) >= tr.water.target });
+    // Each item carries what was done (got), the bar (want) and, if missed,
+    // by how much (miss) — the day summary prints these.
+    for (const g of state.goals) {
+      if (!(g.target > 0)) continue;
+      const done = goalProgress(g, tasks).done, ok = done >= g.target;
+      items.push({ kind: 'goal', name: g.name, ok, got: goalFmt(g, done), want: goalFmt(g, g.target),
+        miss: ok ? '' : `${goalFmt(g, g.target - done)} short` });
+    }
+    if (tr.water.target > 0) {
+      const w = waterTotal(k), ok = w >= tr.water.target, u = tr.water.unit;
+      items.push({ kind: 'water', name: 'Water', ok, got: `${num(w)}`, want: `${num(tr.water.target)} ${u}`, miss: ok ? '' : `${num(tr.water.target - w)} ${u} short` });
+    }
     // Something added to the check-in later only counts from the day it was
     // added, so it can't retroactively turn old green days yellow.
     const metrics = tr.metrics.filter(m => !m.since || k >= m.since);
     const checks = tr.checks.filter(c => !c.since || k >= c.since);
-    for (const m of metrics) if (m.rule !== 'log') items.push({ name: m.name, ok: metricOk(m, rec.log?.[m.id]) });
-    for (const c of checks) items.push({ name: c.name, ok: rec.checks?.[c.id] === c.want });
+    for (const m of metrics) {
+      if (m.rule === 'log') continue;
+      const v = rec.log?.[m.id], ok = metricOk(m, v), u = m.unit ? ' ' + m.unit : '';
+      const miss = ok ? '' : !hasValue(v) ? 'not logged' : m.rule === 'min' ? `${num(m.target - v)}${u} short` : `${num(v - m.target)}${u} over`;
+      items.push({ kind: 'metric', name: m.name, ok, got: hasValue(v) ? num(v) : '—', want: `${m.rule === 'min' ? '≥' : '≤'} ${num(m.target)}${u}`, miss });
+    }
+    for (const c of checks) {
+      const a = rec.checks?.[c.id], ok = a === c.want, cap = x => x ? x[0].toUpperCase() + x.slice(1) : '—';
+      items.push({ kind: 'check', name: c.name, ok, got: cap(a), want: cap(c.want), miss: ok ? '' : a ? cap(a) : 'not answered' });
+    }
     const short = items.filter(i => !i.ok);
     const answered = metrics.every(m => hasValue(rec.log?.[m.id])) && checks.every(c => rec.checks?.[c.id]);
     const today = todayKey();
@@ -723,7 +778,7 @@
     const before = !!state.startDate && k < state.startDate;
     const graded = !before && (k < today ? !!state.days[k] : k === today && answered);
     const status = short.length === 0 ? 'green' : short.length <= 3 ? 'yellow' : 'red';
-    return { items, short, answered, graded, status, before };
+    return { items, short, answered, graded, status, before, metrics };
   }
   // The list a context edits: a date, or a weekday routine.
   function listFor(ctx, mutate) {
@@ -825,12 +880,78 @@
     }
     if (!sc.graded) {
       if (k > todayKey()) return '';
+      if (k < todayKey()) return `<div class="status pending"><b>Nothing logged</b><span>No check-offs or check-in for this day.</span></div>`;
       return `<div class="status pending"><b>In progress</b><span>${sc.items.length - sc.short.length} of ${sc.items.length} hit so far · colored once the check-in is filled in</span></div>`;
     }
-    return `<div class="status ${sc.status}"><b>${STATUS_TITLE[sc.status]}</b><span>${sc.short.length
+    return `<div class="status ${sc.status}"><b>${STATUS_TITLE[sc.status]}</b><button class="btn small sum-btn" data-act="summary">View summary</button><span class="sum-line">${sc.short.length
       ? `${sc.short.length} short: ${shortList}`
       : `Every goal hit — all ${sc.items.length}.`}</span></div>`;
   }
+
+  // ---------- day summary ----------
+  const GROUPS = [['goal', 'Daily goals'], ['water', 'Water'], ['metric', 'Check-in'], ['check', 'Did you…']];
+  const dayTitle = k => dateOf(k).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+
+  function summaryData(k) {
+    const sc = dayScore(k), rec = state.days[k] || {}, tasks = dayTasks(k);
+    const extras = [];
+    const wm = sc.metrics.find(m => m.id === 'weight');
+    const w = rec.log?.weight;
+    if (wm && hasValue(w)) {
+      const prev = lastWeightBefore(k);
+      extras.push(`${wm.name}: ${num(w)} ${wm.unit}${prev ? ` (${+w - prev.v > 0 ? '+' : ''}${num(+w - prev.v)} since ${fmtDay(prev.k)})` : ''}`);
+    }
+    for (const m of sc.metrics) if (m.rule === 'log' && m.id !== 'weight' && hasValue(rec.log?.[m.id])) extras.push(`${m.name}: ${num(rec.log[m.id])} ${m.unit}`);
+    extras.push(`Tasks checked off: ${tasks.filter(t => t.done).length} of ${tasks.length}`);
+    return { sc, extras, hit: sc.items.length - sc.short.length };
+  }
+
+  function openSummary(k) {
+    const { sc, extras, hit } = summaryData(k);
+    $('#sumTitle').textContent = dayTitle(k);
+    const groups = GROUPS.map(([kind, label]) => {
+      const rows = sc.items.filter(i => i.kind === kind);
+      if (!rows.length) return '';
+      return `<div class="sum-group"><h5>${label}</h5>${rows.map(i => `
+        <div class="sum-row ${i.ok ? 'ok' : 'miss'}">
+          <span class="sum-mark" aria-label="${i.ok ? 'hit' : 'missed'}">${i.ok ? '✓' : '✕'}</span>
+          <span class="sum-name">${esc(i.name)}</span>
+          <span class="sum-val"><b>${esc(i.got)}</b> <small>/ ${esc(i.want)}</small></span>
+        </div>`).join('')}</div>`;
+    }).join('');
+    const missed = sc.short.map(i => `${esc(i.name)} <small>(${esc(i.miss)})</small>`).join('; ');
+    $('#sumBody').innerHTML = `
+      <div class="sum-result st-${sc.status}">
+        <span class="sum-big">${hit}/${sc.items.length}</span>
+        <span><b>${STATUS_TITLE[sc.status]}</b><small>Goals hit</small></span>
+      </div>
+      ${groups}
+      <div class="sum-foot">
+        <p><b>Goals hit:</b> ${hit}/${sc.items.length}</p>
+        <p><b>Day result:</b> <span class="sum-res st-${sc.status}">${STATUS_LABEL[sc.status]}</span></p>
+        ${sc.short.length ? `<p><b>Goals missed:</b> ${missed}</p>` : '<p><b>Goals missed:</b> none — every goal hit.</p>'}
+        ${extras.map(x => `<p class="sum-extra">${esc(x)}</p>`).join('')}
+      </div>`;
+    $('#sumDlg').dataset.key = k;
+    $('#sumDlg').showModal();
+  }
+
+  function summaryText(k) {
+    const { sc, extras, hit } = summaryData(k);
+    const lines = [`Live Hard — ${dayTitle(k)}`, ''];
+    for (const i of sc.items) lines.push(`${i.name}: ${i.got} / ${i.want} ${i.ok ? '✅' : '❌'}`);
+    lines.push('', `Goals hit: ${hit}/${sc.items.length}`, `Day result: ${STATUS_LABEL[sc.status]}`);
+    lines.push(`Goals missed: ${sc.short.length ? sc.short.map(i => `${i.name} (${i.miss})`).join('; ') : 'none'}`);
+    return [...lines, ...extras].join('\n');
+  }
+
+  $('#closeSum').addEventListener('click', () => $('#sumDlg').close());
+  $('#doneSum').addEventListener('click', () => $('#sumDlg').close());
+  $('#copySum').addEventListener('click', async () => {
+    const text = summaryText($('#sumDlg').dataset.key);
+    try { await navigator.clipboard.writeText(text); toast('Summary copied.'); }
+    catch { toast('Couldn’t copy on this browser.'); }
+  });
 
   function renderCheckin(k) {
     const tr = state.tracking, rec = state.days[k] || {};
@@ -1250,6 +1371,7 @@
       case 'add': openTask(currentCtx(), null); break;
       case 'edit': openTask(currentCtx(), id); break;
       case 'settings': openSettings(); break;
+      case 'summary': openSummary(view.date); break;
       case 'water': case 'waterCustom': {
         const v = el.dataset.act === 'water' ? +el.dataset.v : +$('#waterCustom').value;
         if (!(v > 0)) { $('#waterCustom')?.focus(); break; }
