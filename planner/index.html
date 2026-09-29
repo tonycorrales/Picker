@@ -341,7 +341,9 @@
   .cal-day {
     aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2);
     font-weight: 600; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1.1;
   }
+  .cal-day .cd-p { font-size: 11px; font-weight: 700; opacity: .9; }
   .cal-day.future { background: transparent; color: var(--ink-3); }
   .cal-day.today { box-shadow: 0 0 0 2px var(--ink) inset; }
   .cal-day.st-green  { background: var(--green);  border-color: transparent; color: #fff; }
@@ -425,6 +427,9 @@
   .sum-res.st-green { color: var(--green); } .sum-res.st-red { color: var(--red); }
   .sum-res.st-yellow { color: color-mix(in srgb, var(--yellow) 75%, var(--ink)); }
   .sum-extra { color: var(--ink-3); font-size: 13px; }
+  .grade-row { font-size: 14px; color: var(--ink-2); }
+  .gdot { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+  .gdot.st-green { background: var(--green); } .gdot.st-yellow { background: var(--yellow); } .gdot.st-red { background: var(--red); }
   .sum-details { background: var(--surface-2); border-radius: 12px; padding: 10px 12px 12px; }
   .det-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
   .det-head h5 { margin: 0; }
@@ -683,6 +688,8 @@
     const def = defaultTracking();
     s.tracking = s.tracking || def;
     s.tracking.water = { ...def.water, ...s.tracking.water };
+    // Day grade cut-offs, as % of items hit.
+    s.tracking.grade = { hard: 90, complacent: 70, ...s.tracking.grade };
     s.tracking.metrics = Array.isArray(s.tracking.metrics) ? s.tracking.metrics : def.metrics;
     s.tracking.checks = Array.isArray(s.tracking.checks) ? s.tracking.checks : def.checks;
     // One-time additions for saves made before a metric existed. Deleting it
@@ -797,8 +804,12 @@
     // check-in is filled in, so it isn't red all morning.
     const before = !!state.startDate && k < state.startDate;
     const graded = !before && (k < today ? !!state.days[k] : k === today && answered);
-    const status = short.length === 0 ? 'green' : short.length <= 3 ? 'yellow' : 'red';
-    return { items, short, answered, graded, status, before, metrics };
+    // Graded on the share of items hit: Lived Hard at 90%+, Complacent at
+    // 70%+, Lived Soft below (cut-offs are editable in settings).
+    const ratio = items.length ? (items.length - short.length) / items.length : 1;
+    const pct = Math.round(ratio * 100), g = tr.grade;
+    const status = pct >= g.hard ? 'green' : pct >= g.complacent ? 'yellow' : 'red';
+    return { items, short, answered, graded, status, before, metrics, pct };
   }
   // The list a context edits: a date, or a weekday routine.
   function listFor(ctx, mutate) {
@@ -904,8 +915,8 @@
       return `<div class="status pending"><b>In progress</b><span>${sc.items.length - sc.short.length} of ${sc.items.length} hit so far · colored once the check-in is filled in</span></div>`;
     }
     return `<div class="status ${sc.status}"><b>${STATUS_TITLE[sc.status]}</b><button class="btn small sum-btn" data-act="summary">View summary</button><span class="sum-line">${sc.short.length
-      ? `${sc.short.length} short: ${shortList}`
-      : `Every goal hit — all ${sc.items.length}.`}</span></div>`;
+      ? `${sc.pct}% hit · ${sc.short.length} short: ${shortList}`
+      : `100% — every goal hit, all ${sc.items.length}.`}</span></div>`;
   }
 
   // ---------- day summary ----------
@@ -983,13 +994,13 @@
     $('#sumBody').innerHTML = `
       <div class="sum-result st-${sc.status}">
         <span class="sum-big">${hit}/${sc.items.length}</span>
-        <span><b>${STATUS_TITLE[sc.status]}</b><small>Goals hit</small></span>
+        <span><b>${STATUS_TITLE[sc.status]}</b><small>${sc.pct}% of goals hit</small></span>
       </div>
       ${fresh ? details : ''}
       ${groups}
       ${fresh ? '' : details}
       <div class="sum-foot">
-        <p><b>Goals hit:</b> ${hit}/${sc.items.length}</p>
+        <p><b>Goals hit:</b> ${hit}/${sc.items.length} (${sc.pct}%)</p>
         <p><b>Day result:</b> <span class="sum-res st-${sc.status}">${STATUS_LABEL[sc.status]}</span></p>
         ${sc.short.length ? `<p><b>Goals missed:</b> ${missed}</p>` : '<p><b>Goals missed:</b> none — every goal hit.</p>'}
         ${extras.map(x => `<p class="sum-extra">${esc(x)}</p>`).join('')}
@@ -1023,7 +1034,7 @@
     const { sc, extras, hit } = summaryData(k);
     const lines = [`Live Hard — ${dayTitle(k)}`, ''];
     for (const i of sc.items) lines.push(`${i.name}: ${i.got} / ${i.want} ${i.ok ? '✅' : '❌'}`);
-    lines.push('', `Goals hit: ${hit}/${sc.items.length}`, `Day result: ${STATUS_LABEL[sc.status]}`);
+    lines.push('', `Goals hit: ${hit}/${sc.items.length} (${sc.pct}%)`, `Day result: ${STATUS_LABEL[sc.status]}`);
     lines.push(`Goals missed: ${sc.short.length ? sc.short.map(i => `${i.name} (${i.miss})`).join('; ') : 'none'}`);
     const saved = state.days[k]?.details || {};
     const det = detailAreas(k).filter(a => saved[a.key]).map(a => `${a.name}: ${saved[a.key]}`);
@@ -1359,7 +1370,7 @@
       const st = sc?.graded ? sc.status : '';
       if (st) mt[st]++;
       const label = st ? STATUS_TITLE[st] : k > today ? 'Upcoming' : k === today ? 'In progress' : 'No record';
-      cells += `<button class="cal-day${st ? ' st-' + st : ''}${k === today ? ' today' : ''}${k > today ? ' future' : ''}" data-open="${k}" aria-label="${esc(dateOf(k).toDateString())}: ${label}">${d}</button>`;
+      cells += `<button class="cal-day${st ? ' st-' + st : ''}${k === today ? ' today' : ''}${k > today ? ' future' : ''}" data-open="${k}" aria-label="${esc(dateOf(k).toDateString())}: ${label}${st ? `, ${sc.pct}% of goals hit` : ''}"><span class="cd-n">${d}</span>${st ? `<span class="cd-p">${sc.pct}%</span>` : ''}</button>`;
     }
     const pct = total ? Math.round(100 * tally.green / total) : 0;
     return `
@@ -1748,6 +1759,15 @@
           </div>`).join('') || '<p class="empty-note">None yet.</p>'}
         <button class="btn small" id="addTm">+ Add metric</button>
       </section>
+      <section class="set-sec">
+        <h4>Day grades</h4>
+        <p>Every goal, water, graded check-in number and yes/no counts as one item. A day's grade is the share of them you hit.</p>
+        <div class="brow grade-row"><span class="gdot st-green"></span><span>Lived Hard at</span>
+          <input class="input num" type="number" min="1" max="100" step="1" value="${state.tracking.grade.hard}" data-g="hard" aria-label="Lived Hard threshold" style="width:72px;flex:none"><span>% or more</span></div>
+        <div class="brow grade-row"><span class="gdot st-yellow"></span><span>Complacent at</span>
+          <input class="input num" type="number" min="0" max="100" step="1" value="${state.tracking.grade.complacent}" data-g="complacent" aria-label="Complacent threshold" style="width:72px;flex:none"><span>% or more</span></div>
+        <div class="brow grade-row"><span class="gdot st-red"></span><span>Lived Soft below that</span></div>
+      </section>
       <section class="set-sec" id="trackSec">
         <h4>Water</h4>
         <p>Daily target, the unit, and the quick-add buttons (comma-separated).</p>
@@ -1810,6 +1830,13 @@
   setBody.addEventListener('input', e => {
     if (e.target.closest('#syncSec')) return;
     const el = e.target, tr = state.tracking;
+    if (el.dataset.g) {
+      const v = clamp(Math.round(+el.value || 0), 0, 100);
+      tr.grade[el.dataset.g] = v;
+      // Keep the cut-offs in order.
+      if (tr.grade.complacent > tr.grade.hard) tr.grade[el.dataset.g === 'hard' ? 'complacent' : 'hard'] = v;
+      persist(); return;
+    }
     if (el.dataset.w) {
       if (el.dataset.w === 'target') tr.water.target = Math.max(0, +el.value || 0);
       if (el.dataset.w === 'unit') tr.water.unit = el.value.trim() || 'oz';

@@ -94,10 +94,12 @@ check off day by day. On GitHub Pages it's at
   "at least" / "at most" target — plus yes/no for nicotine, alcohol, drugs and
   a progress pic. All of it is editable in settings.
 - **Day color.** Every goal, water, each graded number and each yes/no counts as
-  one item. All hit is a green day, 1–3 short is yellow, 4+ is red. Today is
-  colored once the check-in is filled in; past days as soon as they have
-  anything recorded. The week strip shows each day's color. Anything added to
-  the check-in later only counts from the day it was added.
+  one item, and the day is graded on the share hit: 90%+ is Lived Hard (green),
+  70%+ is Complacent (yellow), below that Lived Soft (red) — cut-offs are
+  editable in settings. Today is colored once the check-in is filled in; past
+  days as soon as they have anything recorded. The week strip and the Overview
+  calendar show each day's color, and the calendar shows its %. Anything added
+  to the check-in later only counts from the day it was added.
 - **Day summary.** A graded day (any past day, or today once its check-in is
   done) has a "View summary" button: every goal with ✓ or ✕, what you did
   against the target, goals hit, the day's result, and what was missed and by
