@@ -261,6 +261,43 @@ h1{
   padding:12px 14px; background:var(--sunk); border:1px solid var(--line); border-radius:8px;
 }
 .stand.lead{border-color:var(--accent); background:var(--accent-soft)}
+.stand.two{grid-template-columns:1fr auto auto}
+.lbsec{margin-top:26px !important}
+
+/* ---------- mortal lock ---------- */
+.panel.mortal{border-color:var(--gold)}
+.panel.mortal .eyebrow{color:var(--gold)}
+.mchoices{display:flex; flex-direction:column; gap:6px; max-height:420px; overflow-y:auto; margin-top:4px}
+.mchoice{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px; width:100%;
+  text-align:left; cursor:pointer; padding:10px 12px; border-radius:8px;
+  background:var(--sunk); border:1px solid transparent; transition:background .15s ease, border-color .15s ease;
+}
+.mchoice:hover{background:var(--accent-soft)}
+.mchoice[aria-pressed="true"]{border-color:var(--gold); background:var(--surface)}
+.mchoice .mpick{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:16px; letter-spacing:.01em}
+.mchoice .mctx{display:block; font-family:"IBM Plex Sans",sans-serif; text-transform:none; font-size:12px; color:var(--ink-2); letter-spacing:0}
+.mchoice .mline{font-family:"IBM Plex Mono",monospace; font-weight:600; font-variant-numeric:tabular-nums; color:var(--gold); white-space:nowrap}
+.mset{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  padding:14px; border:1px solid var(--gold); border-radius:8px; margin-top:4px;
+}
+.mset .mpick{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:24px; letter-spacing:.01em; line-height:1.1}
+.mset .mctx{display:block; font-size:13px; color:var(--ink-2); margin-top:2px}
+.mres{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px; letter-spacing:.1em; text-transform:uppercase; white-space:nowrap; color:var(--ink-3)}
+.mres.w{color:var(--win)} .mres.l{color:var(--loss)} .mres.p{color:var(--push)}
+.mothers{display:flex; flex-direction:column; gap:0; margin-top:14px}
+.mothers:empty{display:none}
+.mrow{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px}
+.mrow .who3{font-family:"Oswald",sans-serif; text-transform:uppercase; letter-spacing:.02em; min-width:64px}
+.mrow .what{flex:1; color:var(--ink-2)}
+.btn.gold{background:var(--gold); border-color:var(--gold); color:var(--surface)}
+.btn.gold[disabled]{background:var(--sunk); border-color:var(--line); color:var(--ink-3)}
+.mtag{
+  display:inline-block; margin-left:5px; padding:0 4px; border-radius:3px;
+  font-family:"IBM Plex Mono",monospace; font-size:9px; letter-spacing:.08em;
+  color:var(--surface); background:var(--gold); vertical-align:middle;
+}
 .stand .nm .rk{color:var(--ink-3); font-size:14px}
 .stand .nm{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; letter-spacing:.02em; min-width:0; overflow:hidden; text-overflow:ellipsis}
 .stat{text-align:right}
@@ -366,6 +403,9 @@ footer{
     <h2>Leaderboard</h2>
     <p id="lbSub">Loading…</p>
     <div class="standings" id="lbTable"></div>
+    <h2 class="lbsec">Mortal locks</h2>
+    <p id="lbMortalSub">One pick a week, chosen from your own slate.</p>
+    <div class="standings" id="lbMortal"></div>
     <div class="stack"><button class="btn ghost" id="lbBack" type="button">Back</button></div>
   </section>
 
@@ -409,6 +449,18 @@ footer{
       <p id="lockedSub">Nothing left to do but watch.</p>
       <p class="livebar hidden" id="livebar"><span class="pulse"></span><span id="liveText"></span></p>
       <div class="roster" id="roster"></div>
+    </section>
+
+    <section class="panel mortal hidden" id="mortalPanel">
+      <p class="eyebrow">One pick · its own leaderboard</p>
+      <h2 id="mortalTitle">Mortal lock</h2>
+      <p id="mortalSub"></p>
+      <div class="mchoices" id="mortalList"></div>
+      <div class="stack hidden" id="mortalActions">
+        <button class="btn gold" id="mortalBtn" type="button" disabled>Choose one pick</button>
+      </div>
+      <p class="note" id="mortalNote"></p>
+      <div class="mothers" id="mortalOthers"></div>
     </section>
 
     <section class="panel hidden" id="results">
@@ -459,7 +511,8 @@ footer{
   var state = {
     board: null, you: null, entries: [], roster: [],
     picks: {}, scores: null, preview: !API_BASE,
-    token: "", user: null, codeRequired: false, authMode: "login"
+    token: "", user: null, codeRequired: false, authMode: "login",
+    mortal: null, mortals: [], mortalRoster: [], mortalPick: null
   };
 
   /* ---------- identity, kept on this device ---------- */
@@ -896,6 +949,7 @@ footer{
         var side = g.sides[pk.side];
         td.textContent = side ? side.abbr || side.nick : "—";
         if (side) td.textContent += " " + fmtSpread(side.spread);
+        if (isMortal(p.name, g.id, "spread")) td.appendChild(lockTag());
         if (res){
           var mk = document.createElement("span");
           mk.className = "mk";
@@ -917,6 +971,7 @@ footer{
           var res = (grades[p.name].per[g.id] || {}).total;
           if (res) td.classList.add(res);
           td.textContent = pk.total ? (pk.total === "over" ? "Over" : "Under") : "—";
+          if (isMortal(p.name, g.id, "total")) td.appendChild(lockTag());
           if (res){
             var mk = document.createElement("span");
             mk.className = "mk";
@@ -944,6 +999,7 @@ footer{
       ? "Your picks are in."
       : "Your picks were sealed " + lockedWhen.toLocaleString(undefined, { weekday:"long", hour:"numeric", minute:"2-digit" }) + ".";
     renderRoster();
+    renderMortal();
     renderMine();
     liveLabel();
     startLive();
@@ -989,6 +1045,167 @@ footer{
     state.roster = s.roster || [];
     state.closesAt = s.closesAt || null;
     state.closed = !!s.closed;
+    state.mortal = s.mortal || null;
+    state.mortals = s.mortals || [];
+    state.mortalRoster = s.mortalRoster || [];
+  }
+
+  /* ---------- mortal lock ---------- */
+  /* One pick per week, picked from your own locked slate — a side or a
+     total. It can't contradict your card, it can't be changed, and nobody
+     sees yours until they've set theirs. */
+  function gameById(id){
+    var hit = null;
+    (state.board ? state.board.games : []).forEach(function(g){ if (g.id === id) hit = g; });
+    return hit;
+  }
+
+  function describe(g, kind, choice){
+    if (kind === "spread"){
+      var s = g.sides[choice], o = g.sides[1 - choice];
+      return { pick: s.nick, line: fmtSpread(s.spread), ctx: (choice === 0 ? "at " : "vs ") + o.nick + " · " + fmtKick(g) };
+    }
+    return { pick: choice === "over" ? "Over" : "Under", line: String(g.total),
+             ctx: g.sides[0].nick + " at " + g.sides[1].nick + " · " + fmtKick(g) };
+  }
+
+  /* Same rule the server grades with. */
+  function mortalResult(m){
+    var g = gameById(m.gameId), sc = state.scores && state.scores[m.gameId];
+    if (!g || !sc || !sc.completed || sc.away === null || sc.home === null) return null;
+    if (m.kind === "spread"){
+      var mine = m.choice === 0 ? sc.away : sc.home, theirs = m.choice === 0 ? sc.home : sc.away;
+      var margin = mine - theirs + g.sides[m.choice].spread;
+      return margin > 0 ? "w" : margin < 0 ? "l" : "p";
+    }
+    var comb = sc.away + sc.home;
+    if (comb === g.total) return "p";
+    return (comb > g.total) === (m.choice === "over") ? "w" : "l";
+  }
+
+  function resultLabel(r, g){
+    if (r === "w") return "Won";
+    if (r === "l") return "Lost";
+    if (r === "p") return "Push";
+    return isOpen(g) ? "Pending" : "Live";
+  }
+
+  function renderMortal(){
+    var panel = $("mortalPanel");
+    if (!state.you){ panel.classList.add("hidden"); return; }
+    panel.classList.remove("hidden");
+
+    var list = $("mortalList"), others = $("mortalOthers");
+    list.textContent = ""; others.textContent = "";
+    $("mortalNote").textContent = ""; $("mortalNote").className = "note";
+
+    if (state.mortal){
+      // Set: show it, big, with how it's doing.
+      $("mortalTitle").textContent = "Your mortal lock";
+      $("mortalSub").textContent = "Sealed. It counts on the mortal-lock leaderboard as well as your slate.";
+      show("mortalActions", false);
+      var g = gameById(state.mortal.gameId);
+      if (g){
+        var d = describe(g, state.mortal.kind, state.mortal.choice), r = mortalResult(state.mortal);
+        var box = document.createElement("div");
+        box.className = "mset";
+        var left = document.createElement("span");
+        var pk = document.createElement("span"); pk.className = "mpick"; pk.textContent = d.pick + " " + d.line;
+        var cx = document.createElement("span"); cx.className = "mctx"; cx.textContent = d.ctx;
+        left.appendChild(pk); left.appendChild(cx);
+        var res = document.createElement("span");
+        res.className = "mres" + (r ? " " + r : "");
+        res.textContent = resultLabel(r, g);
+        box.appendChild(left); box.appendChild(res);
+        list.appendChild(box);
+      }
+    } else {
+      // Not set: offer every pick on your slate that hasn't kicked off.
+      var choices = [];
+      state.board.games.forEach(function(g){
+        var p = state.you.picks[g.id];
+        if (!p || !isOpen(g)) return;
+        if (p.side === 0 || p.side === 1) choices.push({ gameId: g.id, kind: "spread", choice: p.side });
+        if (p.total === "over" || p.total === "under") choices.push({ gameId: g.id, kind: "total", choice: p.total });
+      });
+
+      $("mortalTitle").textContent = "Pick your mortal lock";
+      if (!choices.length){
+        $("mortalSub").textContent = "No mortal lock this week — every game on your slate has kicked off.";
+        show("mortalActions", false);
+      } else {
+        $("mortalSub").textContent = "The one pick on your slate you'd stake the house on — a side or a total. " +
+          "It gets its own leaderboard. One a week, and it can't be changed once it's in.";
+        show("mortalActions", true);
+        choices.forEach(function(c){
+          var g = gameById(c.gameId), d = describe(g, c.kind, c.choice);
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "mchoice";
+          var on = state.mortalPick && state.mortalPick.gameId === c.gameId && state.mortalPick.kind === c.kind;
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+          var left = document.createElement("span");
+          var pk = document.createElement("span"); pk.className = "mpick"; pk.textContent = d.pick;
+          var cx = document.createElement("span"); cx.className = "mctx"; cx.textContent = d.ctx;
+          left.appendChild(pk); left.appendChild(cx);
+          var ln = document.createElement("span"); ln.className = "mline"; ln.textContent = d.line;
+          b.appendChild(left); b.appendChild(ln);
+          b.addEventListener("click", function(){
+            state.mortalPick = on ? null : c;
+            renderMortal();
+          });
+          list.appendChild(b);
+        });
+        var btn = $("mortalBtn");
+        if (state.mortalPick){
+          var sel = describe(gameById(state.mortalPick.gameId), state.mortalPick.kind, state.mortalPick.choice);
+          btn.disabled = false;
+          btn.textContent = "Lock " + sel.pick + " " + sel.line;
+        } else {
+          btn.disabled = true;
+          btn.textContent = "Choose one pick";
+        }
+      }
+    }
+
+    // Everyone else's.
+    var mine = state.you.name;
+    if (state.mortals.length){
+      state.mortals.forEach(function(m){
+        if (m.name === mine) return;
+        var g = gameById(m.gameId);
+        if (!g) return;
+        var d = describe(g, m.kind, m.choice), r = mortalResult(m);
+        var row = document.createElement("div"); row.className = "mrow";
+        var w1 = document.createElement("span"); w1.className = "who3"; w1.textContent = m.name;
+        var w2 = document.createElement("span"); w2.className = "what"; w2.textContent = d.pick + " " + d.line;
+        var w3 = document.createElement("span"); w3.className = "mres" + (r ? " " + r : ""); w3.textContent = resultLabel(r, g);
+        row.appendChild(w1); row.appendChild(w2); row.appendChild(w3);
+        others.appendChild(row);
+      });
+    } else {
+      var waiting = state.mortalRoster.filter(function(x){ return x.name !== mine; }).map(function(x){ return x.name; });
+      if (waiting.length){
+        var note = document.createElement("div"); note.className = "mrow";
+        var w = document.createElement("span"); w.className = "what";
+        w.textContent = waiting.join(" and ") + (waiting.length === 1 ? " has" : " have") +
+          " set theirs. You'll see " + (waiting.length === 1 ? "it" : "them") + " once yours is in.";
+        note.appendChild(w); others.appendChild(note);
+      }
+    }
+  }
+
+  function isMortal(name, gameId, kind){
+    var hit = false;
+    state.mortals.forEach(function(m){ if (m.name === name && m.gameId === gameId && m.kind === kind) hit = true; });
+    if (state.mortal && state.you && name === state.you.name &&
+        state.mortal.gameId === gameId && state.mortal.kind === kind) hit = true;
+    return hit;
+  }
+
+  function lockTag(){
+    var s = document.createElement("span");
+    s.className = "mtag"; s.textContent = "LOCK";
+    return s;
   }
 
   /* ---------- live updates ---------- */
@@ -1048,8 +1265,43 @@ footer{
     var season = state.board ? state.board.season : new Date().getFullYear();
     $("lbSub").textContent = "Loading…";
     api("/api/leaderboard?season=" + season)
-      .then(renderLeaderboard)
+      .then(function(d){ renderLeaderboard(d); renderMortalBoard(d); })
       .catch(function(e){ $("lbSub").textContent = String(e.message || e); });
+  }
+
+  function renderMortalBoard(data){
+    var box = $("lbMortal");
+    box.textContent = "";
+    var rows = (data.mortal || []);
+    var anyGraded = rows.some(function(r){ return r.w + r.l + r.p > 0; });
+    if (!anyGraded){
+      $("lbMortalSub").textContent = "No mortal locks graded yet. Set one from your slate each week.";
+      return;
+    }
+    $("lbMortalSub").textContent = "One pick a week, chosen from your own slate. Pushes don't count either way.";
+    rows.forEach(function(r, i){
+      var row = document.createElement("div");
+      row.className = "stand two" + (i === 0 && r.w + r.l ? " lead" : "");
+      var nm = document.createElement("span");
+      nm.className = "nm";
+      var rk = document.createElement("span");
+      rk.className = "rk";
+      rk.textContent = (i + 1) + ".";
+      nm.appendChild(rk);
+      nm.appendChild(document.createTextNode(" " + r.name));
+      function stat(label, val, big){
+        var s = document.createElement("span");
+        s.className = "stat" + (big ? " big" : "");
+        var k = document.createElement("span"); k.className = "k"; k.textContent = label;
+        var v = document.createElement("span"); v.className = "v"; v.textContent = val;
+        s.appendChild(k); s.appendChild(v);
+        return s;
+      }
+      row.appendChild(nm);
+      row.appendChild(stat("Record", r.w + "-" + r.l + (r.p ? "-" + r.p : "")));
+      row.appendChild(stat("Hit rate", pct(r.w, r.l), true));
+      box.appendChild(row);
+    });
   }
 
   function renderLeaderboard(data){
@@ -1260,6 +1512,30 @@ footer{
   }
 
   /* ---------- events ---------- */
+  $("mortalBtn").addEventListener("click", function(){
+    var pick = state.mortalPick;
+    if (!pick || !state.board) return;
+    var btn = this;
+    btn.disabled = true;
+    $("mortalNote").textContent = "Locking…";
+    $("mortalNote").className = "note";
+    api("/api/mortal", {
+      method: "POST",
+      body: { season: state.board.season, week: state.board.week, gameId: pick.gameId, kind: pick.kind }
+    }).then(function(s){
+      applyState(s);
+      state.mortalPick = null;
+      renderLocked();
+    }).catch(function(e){
+      btn.disabled = false;
+      var msg = String(e.message || e);
+      $("mortalNote").textContent = /not found/i.test(msg)
+        ? "Mortal locks need the updated picks server — it hasn't been deployed yet."
+        : msg;
+      $("mortalNote").className = "note bad";
+    });
+  });
+
   $("lbBtn").addEventListener("click", showLeaderboard);
   $("lbBack").addEventListener("click", function(){
     show("leaderboard", false);
@@ -1316,6 +1592,7 @@ footer{
       forgetSession();
       stopLive();
       state.board = null; state.you = null; state.entries = []; state.roster = []; state.picks = {};
+      state.mortal = null; state.mortals = []; state.mortalRoster = []; state.mortalPick = null;
       showAuth("login", "");
       setSource("Sign in to pick", "warn");
     };

@@ -28,6 +28,18 @@ Set a **SIGNUP_CODE** secret on the Worker (Settings → Variables and Secrets) 
 require a code when registering. Without one, anybody who finds the URL can
 claim a name — including a name that carries someone's history.
 
+## Mortal locks
+
+Once your slate is locked you pick one **mortal lock**: a single pick from your
+own card — a side or a total — that you'd stake the house on. It's chosen from
+picks you already made, so it can never contradict your slate.
+
+- One per week, set once, and only on a game that hasn't kicked off.
+- Sealed like everything else: who has set one is public, what they chose is
+  hidden until you've set yours.
+- Graded by the same rule as the slate, and ranked on its own leaderboard by
+  record. It still counts in your slate percentages as an ordinary pick.
+
 ## How a week runs
 
 1. **Friday 11:59pm ET**, a cron trigger wakes the Worker. It pulls the lines
@@ -126,6 +138,7 @@ play stale numbers.
 | `GET /api/scores?season&week` | Final scores for grading |
 | `POST /api/register` · `/api/login` · `/api/logout` · `/api/me` | Accounts and sessions |
 | `POST /api/lock` | Seal the signed-in user's entry (games already kicked off are dropped) |
+| `POST /api/mortal` | Set this week's mortal lock from your locked slate |
 | `GET /api/leaderboard?season` | Season-to-date standings, ranked on overall % |
 
 Lines and scores come from ESPN's public scoreboard endpoint, which needs no key

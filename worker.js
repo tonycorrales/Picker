@@ -215,31 +215,38 @@ function nextClose(open) {
 
 /* ---------------- grading ---------------- */
 
-/** One entry against the frozen lines and the final scores.
- *  A dead-even result is a push: it counts for nobody and is left out of
- *  the percentages rather than scored as a loss. */
+/** One pick against the frozen line and the final score: "w", "l", "p",
+ *  or null while the game isn't final. A dead-even result is a push: it
+ *  counts for nobody and is left out of percentages rather than scored as
+ *  a loss. kind is "spread" (choice = side 0/1) or "total" (choice =
+ *  "over"/"under"). */
+function resultFor(g, kind, choice, sc) {
+  if (!sc || !sc.completed || sc.away === null || sc.home === null) return null;
+  if (kind === "spread") {
+    if (choice !== 0 && choice !== 1) return null;
+    const mine = choice === 0 ? sc.away : sc.home;
+    const theirs = choice === 0 ? sc.home : sc.away;
+    const margin = mine - theirs + g.sides[choice].spread;
+    return margin > 0 ? "w" : margin < 0 ? "l" : "p";
+  }
+  if (g.total === null || g.total === undefined || (choice !== "over" && choice !== "under")) return null;
+  const comb = sc.away + sc.home;
+  if (comb === g.total) return "p";
+  return (comb > g.total) === (choice === "over") ? "w" : "l";
+}
+
+/** A whole entry against the final scores. */
 function gradeEntry(board, picks, scores) {
   const out = { spread: { w: 0, l: 0, p: 0 }, total: { w: 0, l: 0, p: 0 }, graded: 0 };
   for (const g of board.games) {
-    const sc = scores[g.id];
-    if (!sc || !sc.completed || sc.away === null || sc.home === null) continue;
     const pick = picks[g.id];
     if (!pick) continue;
+    const s = resultFor(g, "spread", pick.side, scores[g.id]);
+    if (!s) continue;
     out.graded++;
-
-    const mine = pick.side === 0 ? sc.away : sc.home;
-    const theirs = pick.side === 0 ? sc.home : sc.away;
-    const margin = mine - theirs + g.sides[pick.side].spread;
-    out.spread[margin > 0 ? "w" : margin < 0 ? "l" : "p"]++;
-
-    if (g.total !== null && g.total !== undefined && pick.total) {
-      const comb = sc.away + sc.home;
-      out.total[
-        comb > g.total ? (pick.total === "over" ? "w" : "l")
-        : comb < g.total ? (pick.total === "under" ? "w" : "l")
-        : "p"
-      ]++;
-    }
+    out.spread[s]++;
+    const t = resultFor(g, "total", pick.total, scores[g.id]);
+    if (t) out.total[t]++;
   }
   out.combined = {
     w: out.spread.w + out.total.w,
@@ -377,8 +384,26 @@ async function weekState(env, season, week, user) {
     : [];
 
   const open = openGames(board);
+
+  // Mortal locks: one pick per person, chosen from their own slate. Who has
+  // set one is public; what they chose stays sealed until you've set yours,
+  // or until the board is shut and nobody can act on it anymore.
+  const ml = await env.PICKS.list({ prefix: `mortal:${key}:` });
+  const mortals = [];
+  for (const k of ml.keys) {
+    const m = await env.PICKS.get(k.name, "json");
+    if (m) mortals.push(m);
+  }
+  mortals.sort((a, b) => String(a.lockedAt).localeCompare(String(b.lockedAt)));
+  const myMortal = user ? mortals.find((m) => m.id === user.id) || null : null;
+  const strip = (m) => ({ name: m.name, gameId: m.gameId, kind: m.kind, choice: m.choice, lockedAt: m.lockedAt });
+  const mortalsOpen = !!myMortal || (!!you && !!board && !open.length);
+
   return {
     board, you, entries, roster,
+    mortal: myMortal ? strip(myMortal) : null,
+    mortals: mortalsOpen ? mortals.map(strip) : [],
+    mortalRoster: mortals.map((m) => ({ name: m.name, lockedAt: m.lockedAt })),
     locked: !!you,
     signedInAs: user ? user.name : null,
     openIds: open.map((g) => g.id),
@@ -397,7 +422,7 @@ async function handle(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   if (path === "/" || path === "/api") {
-    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/leaderboard"] });
+    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/mortal", "/api/leaderboard"] });
   }
 
   /* ---- accounts ---- */
@@ -526,11 +551,23 @@ async function handle(request, env) {
         allFinal = board.games.every((g) => scores[g.id] && scores[g.id].completed);
 
         const listed = await env.PICKS.list({ prefix: `entry:${season}-${week}:` });
+        const byGame = Object.fromEntries(board.games.map((g) => [g.id, g]));
+        const ml = await env.PICKS.list({ prefix: `mortal:${season}-${week}:` });
+        const mortalBy = {};
+        for (const mk of ml.keys) {
+          const m = await env.PICKS.get(mk.name, "json");
+          if (m) mortalBy[m.id] = m;
+        }
+
         rows = [];
         for (const ek of listed.keys) {
           const e = await env.PICKS.get(ek.name, "json");
           if (!e) continue;
-          rows.push({ name: e.name, ...gradeEntry(board, e.picks, scores) });
+          const mortal = { w: 0, l: 0, p: 0 };
+          const m = mortalBy[e.id];
+          const mr = m && byGame[m.gameId] ? resultFor(byGame[m.gameId], m.kind, m.choice, scores[m.gameId]) : null;
+          if (mr) mortal[mr]++;
+          rows.push({ name: e.name, ...gradeEntry(board, e.picks, scores), mortal });
         }
         if (allFinal && rows.length) {
           await env.PICKS.put(`graded:${season}-${week}`, JSON.stringify({ rows }));
@@ -543,8 +580,13 @@ async function handle(request, env) {
         const p = players[r.name] || (players[r.name] = {
           name: r.name, weeks: 0,
           spread: { w: 0, l: 0, p: 0 }, total: { w: 0, l: 0, p: 0 }, combined: { w: 0, l: 0, p: 0 },
+          mortal: { w: 0, l: 0, p: 0 },
         });
-        p.weeks++;
+        // A week counts once something in it has actually been graded.
+        if (r.graded > 0) p.weeks++;
+        // Weeks graded before mortal locks existed have no mortal field.
+        const rm = r.mortal || { w: 0, l: 0, p: 0 };
+        for (const res of ["w", "l", "p"]) p.mortal[res] += rm[res];
         for (const bucket of ["spread", "total", "combined"]) {
           for (const res of ["w", "l", "p"]) p[bucket][res] += r[bucket][res];
         }
@@ -556,7 +598,54 @@ async function handle(request, env) {
       const ra = a.combined.w + a.combined.l, rb = b.combined.w + b.combined.l;
       return (rb ? b.combined.w / rb : -1) - (ra ? a.combined.w / ra : -1);
     });
-    return json({ season, players: table, weeks });
+    // Mortal locks rank on their own: best record first, more wins breaking
+    // ties, and anyone yet to have one graded at the bottom.
+    const mortalTable = Object.values(players)
+      .map((p) => ({ name: p.name, ...p.mortal }))
+      .sort((a, b) => {
+        const ra = a.w + a.l, rb = b.w + b.l;
+        const pa = ra ? a.w / ra : -1, pb = rb ? b.w / rb : -1;
+        return pb - pa || b.w - a.w;
+      });
+    return json({ season, players: table, mortal: mortalTable, weeks });
+  }
+
+  /* POST /api/mortal — one pick from your locked slate, set once. */
+  if (path === "/api/mortal" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
+    const { season, week, gameId, kind } = body || {};
+    if (badWeek(season, week)) return json({ error: "bad season or week" }, 400);
+
+    const user = await whoIs(env, request, url);
+    if (!user) return needAuth();
+
+    const key = weekKey(season, week);
+    const entry = await env.PICKS.get(`entry:${key}:${user.id}`, "json");
+    if (!entry) return json({ error: "Lock in your slate first, then pick your mortal lock from it." }, 409);
+    if (await env.PICKS.get(`mortal:${key}:${user.id}`)) {
+      return json({ error: "Your mortal lock is already set for this week." }, 409);
+    }
+
+    const board = await env.PICKS.get(`board:${key}`, "json");
+    const g = board && board.games.find((x) => x.id === String(gameId));
+    if (!g) return json({ error: "That game isn't on this week's board." }, 400);
+    if (!openGames(board).some((x) => x.id === g.id)) {
+      return json({ error: "That game has already kicked off." }, 409);
+    }
+
+    const pick = entry.picks[g.id];
+    if (!pick) return json({ error: "You don't have a pick in that game." }, 400);
+    let choice;
+    if (kind === "spread") choice = pick.side;
+    else if (kind === "total" && (pick.total === "over" || pick.total === "under")) choice = pick.total;
+    else return json({ error: "Choose your spread pick or your total pick." }, 400);
+
+    await env.PICKS.put(`mortal:${key}:${user.id}`, JSON.stringify({
+      id: user.id, name: user.name, gameId: g.id, kind, choice,
+      lockedAt: new Date().toISOString(),
+    }));
+    return json(await weekState(env, season, week, user));
   }
 
   /* POST /api/lock — seal one person's entry. */
