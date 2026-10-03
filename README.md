@@ -212,6 +212,7 @@ play stale numbers.
 | `POST /api/board` | Freeze this week's lines. First call wins; later calls no-op |
 | `GET /api/scores?season&week` | Final scores for grading |
 | `POST /api/register` · `/api/login` · `/api/logout` · `/api/me` | Accounts and sessions |
+| `POST /api/password` | Change your own password (needs the current one) |
 | `POST /api/lock` | Seal the signed-in user's entry (games already kicked off are dropped) |
 | `POST /api/mortal` | Set this week's mortal lock from your locked slate |
 | `GET /api/leaderboard?season` | Season-to-date standings, ranked on overall % |

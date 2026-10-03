@@ -422,7 +422,7 @@ async function handle(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   if (path === "/" || path === "/api") {
-    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/mortal", "/api/leaderboard", "/api/planner"] });
+    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/password", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/mortal", "/api/leaderboard", "/api/planner"] });
   }
 
   /* ---- accounts ---- */
@@ -483,6 +483,28 @@ async function handle(request, env) {
   if (path === "/api/me" && request.method === "GET") {
     const user = await whoIs(env, request, url);
     return json({ user, signupCodeRequired: !!env.SIGNUP_CODE });
+  }
+
+  /* POST /api/password — change your own password. Needs the current one,
+     so a session left open on someone's phone can't be used to lock its
+     owner out. Other signed-in devices stay signed in. */
+  if (path === "/api/password" && request.method === "POST") {
+    const user = await whoIs(env, request, url);
+    if (!user) return needAuth();
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
+    const current = String((body && body.current) || "");
+    const next = String((body && body.next) || "");
+
+    const u = await env.PICKS.get(`user:${user.id}`, "json");
+    if (!u || !sameHash(await derive(current, u.salt), u.hash)) {
+      return json({ error: "Current password is wrong." }, 403);
+    }
+    if (next.length < 4) return json({ error: "Password needs at least 4 characters." }, 400);
+
+    const salt = randomHex(16);
+    await env.PICKS.put(`user:${u.id}`, JSON.stringify({ ...u, salt, hash: await derive(next, salt) }));
+    return json({ ok: true });
   }
 
   /* ---- Live Hard planner sync ----
