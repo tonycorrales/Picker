@@ -77,6 +77,81 @@ Scope is Sunday only — Thursday, Friday, Saturday and Monday games are filtere
 out, using US Eastern dates so Sunday night football counts and Monday night
 doesn't.
 
+## Live Hard (daily planner)
+
+A separate little app lives in **`planner/index.html`** — a weekly routine you
+check off day by day. On GitHub Pages it's at
+`https://<your-github-username>.github.io/Picker/planner/`.
+
+- **Weekly routine.** Each weekday (Mon–Sun) has its own list of tasks with a
+  start time, a duration and a bucket. Every day starts from its weekday's
+  routine. "Copy from…" clones one day's routine into another.
+- **Days.** Check tasks off, add notes ("Leg day"), add one-off tasks, or move
+  and resize them — in the editor (with *push later tasks by the same amount*
+  for when the gym runs long) or by dragging on the Timeline. Edits to a day
+  stay on that date; "Make this my Tuesday routine" promotes them.
+- **Buckets and goals.** Buckets (Faith, Career, Diet, Indoor/Outside exercise…)
+  color the tasks. A goal adds up the *checked-off* tasks in one or more buckets,
+  as minutes or as a count — e.g. Exercise = 1h across both exercise buckets,
+  Meals = 4 Diet tasks. The goal bars show done over planned.
+
+- **Task metrics.** A task can track extra numbers, like pages read on the
+  Bible and Read tasks. Attach them in the task's editor ("Track additional
+  metric"); checking the task off asks for the number. A goal can total a task
+  metric (e.g. Reading = 25 pages a day), and counts toward the day's color.
+- **Water.** A water bar sits with the daily goals. Tap +8 / +16 / +24 (or type
+  an amount) as you drink; Undo takes back the last one.
+- **End-of-day check-in.** Morning weight (just logged, with the change since
+  the last weigh-in), hours slept, calories, protein and steps — each with an
+  "at least" / "at most" target — plus yes/no for nicotine, alcohol, drugs and
+  a progress pic. All of it is editable in settings.
+- **Day color.** Every goal, water, each graded number and each yes/no counts as
+  one item, and the day is graded on the share hit: 90%+ is Lived Hard (green),
+  70%+ is Complacent (yellow), below that Lived Soft (red) — cut-offs are
+  editable in settings. Today is colored once the check-in is filled in; past
+  days as soon as they have anything recorded. The week strip and the Overview
+  calendar show each day's color, and the calendar shows its %. Anything added
+  to the check-in later only counts from the day it was added.
+- **Day summary.** A graded day (any past day, or today once its check-in is
+  done) has a "View summary" button: every goal with ✓ or ✕, what you did
+  against the target, goals hit, the day's result, and what was missed and by
+  how much — plus weight change and tasks done. "Copy as text" copies it.
+  The summary also asks for **details** on the day's work in buckets and task
+  metrics marked "Details" in settings (by default Faith, Career, Indoor and
+  Outside exercise, and Pages read) — e.g. "Push day", "3 mile run". Boxes
+  come prefilled with that bucket's task notes; once submitted they show as
+  text with an Edit button.
+- **Overview.** A month calendar colored by grade, the all-time tally — Days
+  Lived Hard (green), Days Complacent (yellow), Days Lived Soft (red) — the
+  current run of Consecutive Days Lived Hard, and the record run. Today still
+  in progress doesn't break the streak.
+
+- **% Improved.** On the Overview: +1% for each day lived hard, −1% for each
+  day lived soft, 0 for complacent. Pick the range — since you started, the
+  last 7 / 30 / 365 days, or from any date.
+- **Started living hard.** A date on the Overview; days before it aren't
+  graded or counted anywhere (tallies, streaks, % improved). It's also the
+  default start for % improved.
+
+### Sync
+
+Sign in under the sliders button to keep devices in step. It uses the same
+accounts as the pick'em (the Worker's `/api/register` and `/api/login`), and
+stores one planner per account in KV under `planner:<user>` via
+`GET/POST /api/planner`. Each device keeps working offline in localStorage and
+syncs in the background — a second after each change, when the app comes back
+to the foreground, and every minute while open. Saves carry the revision they
+were based on; if another device saved first, the Worker answers 409 with its
+copy and the page merges field by field (tasks by id, water entries, each
+check-in answer) against the last copy both agreed on, then saves again. Which
+view you're on and similar per-device settings aren't synced.
+
+**After merging this, redeploy the Worker** — paste the new `worker.js` into
+the Cloudflare dashboard (Edit code → Deploy). Until then the page signs in but
+reports that the sync server needs updating.
+
+**Export / Import** (the sliders button) still saves or restores a file copy.
+
 ## Setup
 
 ### 1. The Worker (about five minutes, free, no card)
@@ -140,6 +215,7 @@ play stale numbers.
 | `POST /api/lock` | Seal the signed-in user's entry (games already kicked off are dropped) |
 | `POST /api/mortal` | Set this week's mortal lock from your locked slate |
 | `GET /api/leaderboard?season` | Season-to-date standings, ranked on overall % |
+| `GET` · `POST /api/planner` | The signed-in user's Live Hard planner (`{ rev, at, data }`); POST takes `{ baseRev, data }` and answers 409 with the current copy if `baseRev` is stale |
 
 Lines and scores come from ESPN's public scoreboard endpoint, which needs no key
 and no signup. Spreads and totals are DraftKings' numbers as ESPN publishes them.
