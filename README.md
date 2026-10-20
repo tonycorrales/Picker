@@ -77,6 +77,34 @@ Scope is Sunday only — Thursday, Friday, Saturday and Monday games are filtere
 out, using US Eastern dates so Sunday night football counts and Monday night
 doesn't.
 
+## Nightly Slip (NBA)
+
+The same game every night of the NBA season, in **`nba/index.html`** — on
+GitHub Pages at `https://<your-github-username>.github.io/Picker/nba/`. It runs
+on the same Worker and the same accounts: sign in on either page and you're
+signed in on both.
+
+- **Lines are set at 8am ET.** Each morning a cron trigger pulls that day's
+  games and freezes the spreads and totals, exactly once. Games without a line
+  posted by 8am sit the night out. If the trigger ever misses, the first page
+  load after 8am freezes the board instead.
+- **Everything else works like a Sunday.** Two calls per game, each game shuts
+  at its own tip-off, picks are sealed until yours are locked, pushes don't
+  count, and you pick one **mortal lock** a night from your own slate.
+- **The seal lifts at the last tip.** Once every game has started, nobody can
+  act on what they see, so everyone's picks show — including to anyone who sat
+  the night out.
+- **Days.** The page opens on tonight once the lines are up, and on last
+  night's results until then. The arrows step back through earlier nights.
+- **Live scores.** While you have it open it re-checks every minute, showing
+  the quarter and score of games in progress, and grading each one as it goes
+  final. It stops once everything is in, or while the tab is in the background.
+- **Leaderboard.** Season to date (2026–27 runs from October to June), ranked
+  on overall %, plus its own mortal-lock table. A postponed game never goes
+  final; it's simply left out.
+
+Every NBA key in KV lives under `nba:`, so the two games never touch.
+
 ## Live Hard (daily planner)
 
 A separate little app lives in **`planner/index.html`** — a weekly routine you
@@ -169,6 +197,12 @@ reports that the sync server needs updating.
    is easy to get wrong; the abbreviation sidesteps it.) In winter the first one
    lands at 10:59pm ET rather than 11:59 — an hour early on a Friday night,
    which costs nothing.
+
+   For the NBA, add one more: `0 12,13,14 * * *`. That's 8am ET in summer
+   (12:00 UTC) and in winter (13:00 UTC) from a single trigger; the Worker
+   skips any run that lands before 8am ET, and later ones are no-op retries.
+   The Worker tells the two leagues' triggers apart by the time of day, so
+   the morning one can never freeze an NFL week early.
 7. Copy the Worker's URL — `https://sunday-slip.<something>.workers.dev`.
 
 Visiting that URL in a browser should return `{"ok":true,...}`. If it says
@@ -196,6 +230,17 @@ if you do this midweek, delete the `board:<season>-<week>` key in the KV
 namespace afterward, or Sunday's cron will have nothing to do and you'll all
 play stale numbers.
 
+The NBA board needs no forcing — loading the page any time after 8am ET opens
+that day's board if the trigger hasn't. To freeze a day yourself:
+
+```
+curl -X POST https://sunday-slip.<something>.workers.dev/api/nba/board
+```
+
+Before 8am ET that's refused unless you send `{"force":true}`. You can also
+send `{"date":"2026-10-21","games":[…]}` to freeze a board you captured
+elsewhere, for when no ESPN host will talk to Cloudflare. First write wins.
+
 ## Notes
 
 - Names are claimed once, by account. Sign in from as many devices as you like.
@@ -216,6 +261,12 @@ play stale numbers.
 | `POST /api/lock` | Seal the signed-in user's entry (games already kicked off are dropped) |
 | `POST /api/mortal` | Set this week's mortal lock from your locked slate |
 | `GET /api/leaderboard?season` | Season-to-date standings, ranked on overall % |
+| `GET /api/nba/day?date` | One night's board, your entry, the roster, and — once you're locked, or every game has tipped — everyone's entries. Omit `date` for the newest board |
+| `GET /api/nba/days` | Every date with an NBA board |
+| `POST /api/nba/board` | Freeze a day's lines (`{ date, force, games }`, all optional). First call wins |
+| `GET /api/nba/scores?date` | Live and final scores for one night |
+| `POST /api/nba/lock` · `/api/nba/mortal` | Seal your NBA slate for a night; set that night's mortal lock |
+| `GET /api/nba/leaderboard?season` | NBA season to date (2026–27 is `2027`) |
 | `GET` · `POST /api/planner` | The signed-in user's Live Hard planner (`{ rev, at, data }`); POST takes `{ baseRev, data }` and answers 409 with the current copy if `baseRev` is stale |
 
 Lines and scores come from ESPN's public scoreboard endpoint, which needs no key
