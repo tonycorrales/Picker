@@ -2,8 +2,8 @@
  * Sunday Slip — picks API (Cloudflare Worker + KV).
  *
  * Owns three jobs:
- *   1. Freeze the week's board. A cron trigger fires 5am ET every Sunday,
- *      pulls the lines once, keeps only that day's games, and stores them.
+ *   1. Freeze the week's board. A cron trigger fires late Friday night ET,
+ *      pulls the lines once, keeps only Sunday's games, and stores them.
  *      Nothing re-reads odds after that, so all three of us play identical
  *      numbers no matter when we pick.
  *   2. Hold one sealed entry per person. Nobody sees anyone else's picks
@@ -11,9 +11,12 @@
  *      can't be stepped around from a browser console.
  *   3. Report final scores for grading.
  *
- * Needs one KV namespace bound as PICKS, and cron triggers 0 9 * * 0 and
- * 0 10 * * 0 (09:00 UTC is 5am ET in summer, 4am in winter; the second is
- * a harmless retry — whichever lands first wins and the other no-ops).
+ * Nightly Slip, the NBA version, runs the same game every day under
+ * /api/nba/: its board freezes at 8am ET each morning instead.
+ *
+ * Needs one KV namespace bound as PICKS, and cron triggers 59 3 * * SAT and
+ * 59 4 * * SAT for the NFL (the second is a harmless retry — whichever lands
+ * first wins and the other no-ops), plus 0 12,13,14 * * * for the NBA.
  */
 
 /* ESPN answers some hosts and not others depending on where the request
@@ -25,6 +28,12 @@ const FEEDS = [
   { base: "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard", shape: "site" },
   { base: "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard", shape: "site" },
   { base: "https://cdn.espn.com/core/nfl/scoreboard", shape: "cdn" },
+];
+
+const NBA_FEEDS = [
+  { base: "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard", shape: "site" },
+  { base: "https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard", shape: "site" },
+  { base: "https://cdn.espn.com/core/nba/scoreboard", shape: "cdn" },
 ];
 
 const UAS = [
@@ -89,9 +98,13 @@ function unwrap(feed, body) {
   return { events: body.events || [], season: body.season, week: body.week };
 }
 
-async function getFeed(query) {
+/** First host to answer with games wins. emptyOk lets a host that answered
+ *  with no games count as an answer — an NBA off day is a real empty
+ *  slate, where an empty NFL week has only ever meant a host misbehaving. */
+async function getFeed(query, feeds = FEEDS, emptyOk = false) {
   const tried = [];
-  for (const feed of FEEDS) {
+  let empty = null;
+  for (const feed of feeds) {
     for (const ua of UAS) {
       try {
         const r = await fetch(feedUrl(feed, query), {
@@ -101,51 +114,72 @@ async function getFeed(query) {
         if (!r.ok) { tried.push(`${new URL(feed.base).host} ${r.status}`); continue; }
         const got = unwrap(feed, await r.json());
         if (got.events.length) return got;
+        empty = got;
         tried.push(`${new URL(feed.base).host} empty`);
       } catch (e) {
         tried.push(`${new URL(feed.base).host} ${String((e && e.message) || e)}`);
       }
     }
   }
+  if (emptyOk && empty) return empty;
   throw new Error("no feed host answered — " + tried.join("; "));
+}
+
+/** One game as it goes on a board — both sides with their spread, the
+ *  total, start time and network — or null if it has already started or
+ *  has no spread posted. Shared by both leagues; the feeds are the same
+ *  shape. */
+function lineFromEvent(e) {
+  const c = (e.competitions || [])[0];
+  if (!c) return null;
+  const state = ((c.status || {}).type || {}).state;
+  if (state && state !== "pre") return null;
+
+  const odds = (c.odds || [])[0];
+  if (!odds || odds.spread === undefined || odds.spread === null) return null;
+  const mag = Math.abs(Number(odds.spread));
+
+  // "BOS -1.5" names the favorite. If that abbreviation matches neither
+  // team, fall back to the feed's own favorite flags rather than handing
+  // both sides the points.
+  const favAbbr = String(odds.details || "").split(" ")[0];
+  const comps = c.competitors || [];
+  let favSide = (comps.find((t) => (t.team || {}).abbreviation === favAbbr) || {}).homeAway;
+  if (!favSide) {
+    if ((odds.homeTeamOdds || {}).favorite) favSide = "home";
+    else if ((odds.awayTeamOdds || {}).favorite) favSide = "away";
+  }
+
+  const byHome = {};
+  for (const t of comps) {
+    const tm = t.team || {};
+    byHome[t.homeAway] = {
+      abbr: tm.abbreviation || "",
+      nick: tm.shortDisplayName || tm.name || tm.displayName || "",
+      city: tm.location || "",
+      color: tm.color ? `#${String(tm.color).replace(/^#/, "")}` : "",
+      spread: mag ? (t.homeAway === favSide ? -mag : mag) : 0,
+    };
+  }
+  if (!byHome.home || !byHome.away) return null;
+
+  const bc = (c.broadcasts || [])[0];
+  return {
+    id: String(e.id),
+    date: e.date,
+    net: (bc && bc.names && bc.names[0]) || "",
+    total: odds.overUnder === undefined || odds.overUnder === null ? null : Number(odds.overUnder),
+    sides: [byHome.away, byHome.home],
+  };
 }
 
 /** Sunday games only, still to be played, with a spread posted. */
 function boardFromFeed(feed) {
   const games = [];
   for (const e of feed.events) {
-    const c = (e.competitions || [])[0];
-    if (!c) continue;
     if (easternDay(e.date) !== "Sun") continue;
-    const state = ((c.status || {}).type || {}).state;
-    if (state && state !== "pre") continue;
-
-    const odds = (c.odds || [])[0];
-    if (!odds || odds.spread === undefined || odds.spread === null) continue;
-    const favAbbr = String(odds.details || "").split(" ")[0];
-    const mag = Math.abs(Number(odds.spread));
-
-    const byHome = {};
-    for (const t of c.competitors || []) {
-      const tm = t.team || {};
-      byHome[t.homeAway] = {
-        abbr: tm.abbreviation || "",
-        nick: tm.shortDisplayName || tm.name || tm.displayName || "",
-        city: tm.location || "",
-        color: tm.color ? `#${String(tm.color).replace(/^#/, "")}` : "",
-        spread: mag ? (tm.abbreviation === favAbbr ? -mag : mag) : 0,
-      };
-    }
-    if (!byHome.home || !byHome.away) continue;
-
-    const bc = (c.broadcasts || [])[0];
-    games.push({
-      id: String(e.id),
-      date: e.date,
-      net: (bc && bc.names && bc.names[0]) || "",
-      total: odds.overUnder === undefined || odds.overUnder === null ? null : Number(odds.overUnder),
-      sides: [byHome.away, byHome.home],
-    });
+    const g = lineFromEvent(e);
+    if (g) games.push(g);
   }
   games.sort((a, b) => new Date(a.date) - new Date(b.date));
   return games;
@@ -256,12 +290,9 @@ function gradeEntry(board, picks, scores) {
   return out;
 }
 
-async function scoresFor(season, week) {
-  const feed = await getFeed({
-    dates: parseInt(season, 10),
-    seasontype: 2,
-    week: parseInt(week, 10),
-  });
+/** Score and status of every game in a feed, by game id. detail is ESPN's
+ *  own one-liner — "Final", "Q3 4:12", "Halftime" — for showing live. */
+function scoresFromFeed(feed) {
   const scores = {};
   for (const e of feed.events) {
     const c = (e.competitions || [])[0];
@@ -272,11 +303,76 @@ async function scoresFor(season, week) {
     scores[String(e.id)] = {
       completed: !!st.completed,
       state: st.state || "",
+      detail: st.shortDetail || "",
       away: Number.isFinite(by.away) ? by.away : null,
       home: Number.isFinite(by.home) ? by.home : null,
     };
   }
   return scores;
+}
+
+async function scoresFor(season, week) {
+  return scoresFromFeed(await getFeed({
+    dates: parseInt(season, 10),
+    seasontype: 2,
+    week: parseInt(week, 10),
+  }));
+}
+
+/** Season totals from graded groups — weeks or days — ranked on overall %,
+ *  plus the mortal-lock table ranked on its own. unit names the counter of
+ *  groups each player actually had something graded in. */
+function standings(groups, unit) {
+  const players = {};
+  for (const grp of groups) {
+    for (const r of grp.players) {
+      const p = players[r.name] || (players[r.name] = {
+        name: r.name, [unit]: 0,
+        spread: { w: 0, l: 0, p: 0 }, total: { w: 0, l: 0, p: 0 }, combined: { w: 0, l: 0, p: 0 },
+        mortal: { w: 0, l: 0, p: 0 },
+      });
+      // A group counts once something in it has actually been graded.
+      if (r.graded > 0) p[unit]++;
+      // Weeks graded before mortal locks existed have no mortal field.
+      const rm = r.mortal || { w: 0, l: 0, p: 0 };
+      for (const res of ["w", "l", "p"]) p.mortal[res] += rm[res];
+      for (const bucket of ["spread", "total", "combined"]) {
+        for (const res of ["w", "l", "p"]) p[bucket][res] += r[bucket][res];
+      }
+    }
+  }
+
+  const table = Object.values(players).sort((a, b) => {
+    const ra = a.combined.w + a.combined.l, rb = b.combined.w + b.combined.l;
+    return (rb ? b.combined.w / rb : -1) - (ra ? a.combined.w / ra : -1);
+  });
+  // Mortal locks rank on their own: best record first, more wins breaking
+  // ties, and anyone yet to have one graded at the bottom.
+  const mortal = Object.values(players)
+    .map((p) => ({ name: p.name, ...p.mortal }))
+    .sort((a, b) => {
+      const ra = a.w + a.l, rb = b.w + b.l;
+      const pa = ra ? a.w / ra : -1, pb = rb ? b.w / rb : -1;
+      return pb - pa || b.w - a.w;
+    });
+  return { players: table, mortal };
+}
+
+/** Every pick still open, checked and trimmed to what gets stored, or an
+ *  error message. Games already under way are dropped rather than
+ *  rejected — they simply aren't yours to pick. */
+function cleanPicks(open, picks) {
+  const clean = {};
+  for (const g of open) {
+    const p = (picks || {})[g.id];
+    if (!p || (p.side !== 0 && p.side !== 1)) return { error: "Every game needs a side picked." };
+    const needsTotal = g.total !== null && g.total !== undefined;
+    if (needsTotal && p.total !== "over" && p.total !== "under") {
+      return { error: "Every game needs an over or under." };
+    }
+    clean[g.id] = { side: p.side, total: needsTotal ? p.total : null };
+  }
+  return { clean };
 }
 
 
@@ -354,6 +450,38 @@ async function whoIs(env, request, url) {
 
 const needAuth = () => json({ error: "Sign in first." }, 401);
 
+async function listKeys(env, prefix) {
+  const names = [];
+  let cursor;
+  do {
+    const r = await env.PICKS.list(cursor ? { prefix, cursor } : { prefix });
+    for (const k of r.keys) names.push(k.name);
+    cursor = r.list_complete ? null : r.cursor;
+  } while (cursor);
+  return names;
+}
+
+/* Everyone with an account, as one list of ids. A day's NBA entries are
+   read by key for each of these rather than found by listing KV: the free
+   plan allows 1,000 list operations a day, and a page re-checking scores
+   every minute through a night of games would spend that on its own.
+   Built from a listing the first time it's needed, kept current on
+   registration, and topped up on every NBA lock in case a write was lost. */
+async function userIds(env) {
+  const ids = await env.PICKS.get("users", "json");
+  if (Array.isArray(ids)) return ids;
+  const built = (await listKeys(env, "user:")).map((k) => k.slice("user:".length));
+  await env.PICKS.put("users", JSON.stringify(built));
+  return built;
+}
+
+async function addUserId(env, id) {
+  const ids = await userIds(env);
+  if (ids.includes(id)) return;
+  ids.push(id);
+  await env.PICKS.put("users", JSON.stringify(ids));
+}
+
 /* ---------------- state ---------------- */
 
 /** Everything a client may know, given who is asking. */
@@ -412,6 +540,360 @@ async function weekState(env, season, week, user) {
   };
 }
 
+/* ---------------- Nightly Slip (NBA) ---------------- */
+
+/* The same game, every night of the NBA season. Boards are keyed by date
+   rather than week: at 8am ET the day's lines are pulled once and frozen,
+   and from there it runs like a Sunday — each game shuts at its own tip,
+   entries stay sealed until yours is in, one mortal lock a day. Everything
+   lives under nba: keys, so the two games never touch. */
+
+const NBA_LINES_HOUR = 8; // ET
+
+/** A moment's date and hour on the US Eastern clock — the one the NBA
+ *  schedule is written in, and the one ESPN's dates= files games under
+ *  (a 10:30pm tip belongs to that evening, not to the next UTC day). */
+function eastern(when) {
+  const p = {};
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(when));
+  for (const x of parts) p[x.type] = x.value;
+  return { date: `${p.year}-${p.month}-${p.day}`, hour: parseInt(p.hour, 10) % 24 };
+}
+
+const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || "")) && !isNaN(Date.parse(s));
+
+function dayBefore(date) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The season a date falls in, named the way ESPN names it: 2026-27 is 2027. */
+function nbaSeason(date) {
+  const [y, m] = date.split("-").map(Number);
+  return m >= 8 ? y + 1 : y;
+}
+
+/** That day's games, still to tip, with a spread posted. Preseason is left out. */
+function nbaBoardFromFeed(feed, date) {
+  const games = [];
+  for (const e of feed.events) {
+    if (eastern(e.date).date !== date) continue;
+    if (e.season && e.season.type === 1) continue;
+    const g = lineFromEvent(e);
+    if (g) games.push(g);
+  }
+  games.sort((a, b) => new Date(a.date) - new Date(b.date));
+  return games;
+}
+
+async function nbaScoresFor(date) {
+  return scoresFromFeed(await getFeed({ dates: date.replace(/-/g, "") }, NBA_FEEDS, true));
+}
+
+/** Freeze one day's lines. First write wins; later calls are no-ops. games,
+ *  if given, is stored as-is — the escape hatch for when no feed host will
+ *  talk to us. Callers decide whether it's late enough in the day. */
+async function freezeNbaDay(env, date, games) {
+  const key = `nba:board:${date}`;
+  const existing = await env.PICKS.get(key, "json");
+  if (existing) return { board: existing, frozen: false };
+
+  if (!Array.isArray(games) || !games.length) {
+    const feed = await getFeed({ dates: date.replace(/-/g, "") }, NBA_FEEDS, true);
+    games = nbaBoardFromFeed(feed, date);
+    if (!games.length) throw new Error(`No NBA games with lines on ${date}.`);
+  }
+
+  const board = { season: nbaSeason(date), date, games, frozenAt: new Date().toISOString() };
+  await env.PICKS.put(key, JSON.stringify(board));
+  // The page opens on the newest board.
+  const cur = await env.PICKS.get("nba:current", "json");
+  if (!cur || String(cur.date) < date) await env.PICKS.put("nba:current", JSON.stringify({ date }));
+  return { board, frozen: true };
+}
+
+/** Today's date if its board exists, freezing it first if it's due and
+ *  nobody has — the morning trigger missed, or was never set up. Null on
+ *  an off day, or when the feed won't answer; either leaves a marker for
+ *  15 minutes so every page load doesn't go back to ESPN to hear it again. */
+async function nbaCatchUp(env, now) {
+  if (await env.PICKS.get(`nba:board:${now.date}`)) return now.date;
+  if (now.hour < NBA_LINES_HOUR) return null;
+  if (await env.PICKS.get(`nba:quiet:${now.date}`)) return null;
+  try {
+    await freezeNbaDay(env, now.date);
+    return now.date;
+  } catch {
+    await env.PICKS.put(`nba:quiet:${now.date}`, "1", { expirationTtl: 900 });
+    return null;
+  }
+}
+
+/** Everyone's entry for a day, oldest lock first. */
+async function nbaEntries(env, date) {
+  const ids = await userIds(env);
+  const got = await Promise.all(ids.map((id) => env.PICKS.get(`nba:entry:${date}:${id}`, "json")));
+  return got.filter(Boolean).sort((a, b) => String(a.lockedAt).localeCompare(String(b.lockedAt)));
+}
+
+/** Everything a client may know about one day, given who is asking. */
+async function nbaDayState(env, date, user) {
+  const board = await env.PICKS.get(`nba:board:${date}`, "json");
+  const all = board ? await nbaEntries(env, date) : [];
+  const open = openGames(board);
+  const closed = !!(board && !open.length);
+
+  const mine = user ? all.find((e) => e.id === user.id) : null;
+  const you = mine ? { name: mine.name, lockedAt: mine.lockedAt, picks: mine.picks } : null;
+
+  // The seal. It lifts once your own entry is in — or once every game has
+  // tipped, when nobody can act on what they'd see.
+  const seen = !!you || closed;
+
+  // Mortal locks ride on the entry. Who has set one is public; what they
+  // chose stays sealed until you've set yours, or the slate is shut.
+  const withMortal = all.filter((e) => e.mortal);
+  const strip = (e) => ({
+    name: e.name, gameId: e.mortal.gameId, kind: e.mortal.kind,
+    choice: e.mortal.choice, lockedAt: e.mortal.lockedAt,
+  });
+
+  return {
+    date, board, you,
+    entries: seen ? all.map((e) => ({ name: e.name, lockedAt: e.lockedAt, picks: e.picks })) : [],
+    roster: all.map((e) => ({ name: e.name, lockedAt: e.lockedAt })),
+    mortal: mine && mine.mortal ? strip(mine) : null,
+    mortals: (mine && mine.mortal) || closed ? withMortal.map(strip) : [],
+    mortalRoster: withMortal.map((e) => ({ name: e.name, lockedAt: e.mortal.lockedAt })),
+    locked: !!you,
+    signedInAs: user ? user.name : null,
+    openIds: open.map((g) => g.id),
+    closesAt: nextClose(open),
+    closed,
+  };
+}
+
+/** A day is settled once every game on its board is final or called off
+ *  (a postponed game never goes final; it just doesn't count), or once
+ *  it's two days back — a game still missing by then was moved to
+ *  another date and isn't coming back to this one. */
+function nbaSettled(board, scores, date, today) {
+  if (date < dayBefore(today)) return true;
+  return board.games.every((g) => {
+    const s = scores[g.id];
+    return !!s && (s.completed || s.state === "post");
+  });
+}
+
+/** One day graded for the leaderboard, or null if there's nothing to grade
+ *  or the scores can't be had right now. */
+async function gradeNbaDay(env, date, today) {
+  const board = await env.PICKS.get(`nba:board:${date}`, "json");
+  if (!board || !board.games || !board.games.length) return null;
+  let scores;
+  try { scores = await nbaScoresFor(date); }
+  catch { return null; }
+
+  const byGame = Object.fromEntries(board.games.map((g) => [g.id, g]));
+  const rows = (await nbaEntries(env, date)).map((e) => {
+    const mortal = { w: 0, l: 0, p: 0 };
+    const m = e.mortal;
+    const r = m && byGame[m.gameId] ? resultFor(byGame[m.gameId], m.kind, m.choice, scores[m.gameId]) : null;
+    if (r) mortal[r]++;
+    return { name: e.name, ...gradeEntry(board, e.picks, scores), mortal };
+  });
+  return { final: nbaSettled(board, scores, date, today), rows };
+}
+
+/** The season's days, graded. A settled day never changes, so it's graded
+ *  once and kept in a single season document. Each day not yet kept costs
+ *  a feed call, so at most `budget` are graded per run, newest first; the
+ *  morning trigger keeps that backlog to last night, so it's rarely more
+ *  than one. behind counts the days left for a later run. */
+async function nbaSeasonDays(env, season, budget) {
+  const today = eastern(Date.now()).date;
+  const key = `nba:graded:${season}`;
+  const kept = (await env.PICKS.get(key, "json")) || { days: {} };
+  const dates = (await listKeys(env, "nba:board:"))
+    .map((k) => k.slice("nba:board:".length))
+    .filter((d) => isDate(d) && nbaSeason(d) === season)
+    .sort()
+    .reverse();
+
+  const days = [];
+  let dirty = false, behind = 0;
+  for (const date of dates) {
+    let day = kept.days[date];
+    if (!day) {
+      if (budget <= 0) { behind++; continue; }
+      budget--;
+      day = await gradeNbaDay(env, date, today);
+      if (!day) continue;
+      if (day.final) { kept.days[date] = day; dirty = true; }
+    }
+    if (day.rows.length) days.push({ date, final: day.final, players: day.rows });
+  }
+  if (dirty) await env.PICKS.put(key, JSON.stringify(kept));
+  return { days: days.reverse(), behind };
+}
+
+/** The morning trigger: fold last night into the season, then freeze
+ *  today's lines. It fires at 12:00, 13:00 and 14:00 UTC so that one of
+ *  them is 8am ET whether or not daylight time is on; a run before 8am is
+ *  skipped, and any after the one that froze the board is a no-op. */
+async function nbaMorning(env, when) {
+  const now = eastern(when);
+  if (now.hour < NBA_LINES_HOUR) return;
+  try { await nbaSeasonDays(env, nbaSeason(now.date), 3); } catch { /* the leaderboard catches up */ }
+  await freezeNbaDay(env, now.date);
+}
+
+async function handleNba(request, env, url, path) {
+  const q = url.searchParams;
+  const now = eastern(Date.now());
+  // The page's clock: what today is in ET, and whether its lines are due yet.
+  const clock = { today: now.date, beforeLines: now.hour < NBA_LINES_HOUR, linesHour: NBA_LINES_HOUR };
+
+  /* GET /api/nba/day?date=YYYY-MM-DD
+     Omit date for the newest board: today's once its lines are set, last
+     night's until then. */
+  if (path === "/api/nba/day" && request.method === "GET") {
+    const user = await whoIs(env, request, url);
+    let date = q.get("date");
+    if (date && !isDate(date)) return json({ error: "bad date" }, 400);
+    if (!date) {
+      const cur = await env.PICKS.get("nba:current", "json");
+      date = cur && cur.date === now.date ? cur.date : (await nbaCatchUp(env, now)) || (cur && cur.date);
+      if (!date) {
+        return json({ board: null, you: null, entries: [], roster: [], locked: false, pending: true, signedInAs: user ? user.name : null, ...clock });
+      }
+    }
+    return json({ ...(await nbaDayState(env, date, user)), ...clock });
+  }
+
+  /* GET /api/nba/days — every date with a board, oldest first. */
+  if (path === "/api/nba/days" && request.method === "GET") {
+    const dates = (await listKeys(env, "nba:board:"))
+      .map((k) => k.slice("nba:board:".length))
+      .filter(isDate)
+      .sort();
+    return json({ dates, ...clock });
+  }
+
+  /* POST /api/nba/board — freeze a day now. Body, all optional:
+     { date, force, games }. date defaults to today; today's lines can't
+     be frozen before 8am ET without force; games freezes a board handed
+     over directly. First write wins either way. */
+  if (path === "/api/nba/board" && request.method === "POST") {
+    let body = null;
+    try { body = await request.json(); } catch { body = null; }
+    const date = (body && body.date) || now.date;
+    if (!isDate(date)) return json({ error: "bad date" }, 400);
+    const pushed = body && Array.isArray(body.games) && body.games.length ? body.games : null;
+    const early = date > now.date || (date === now.date && now.hour < NBA_LINES_HOUR);
+    if (!pushed && early && !(body && body.force)) {
+      return json({ error: `Lines are set at ${NBA_LINES_HOUR}am ET.` }, 409);
+    }
+    try {
+      return json(await freezeNbaDay(env, date, pushed));
+    } catch (e) {
+      return json({ error: String((e && e.message) || e) }, 502);
+    }
+  }
+
+  /* GET /api/nba/scores?date= — live and final scores for grading. */
+  if (path === "/api/nba/scores" && request.method === "GET") {
+    const date = q.get("date");
+    if (!isDate(date)) return json({ error: "bad date" }, 400);
+    try {
+      return json({ scores: await nbaScoresFor(date) });
+    } catch (e) {
+      return json({ error: String((e && e.message) || e) }, 502);
+    }
+  }
+
+  /* GET /api/nba/leaderboard?season= — season to date, every day combined.
+     season defaults to the current one (2026-27 is 2027). */
+  if (path === "/api/nba/leaderboard" && request.method === "GET") {
+    const season = parseInt(q.get("season") || "", 10) || nbaSeason(now.date);
+    if (!(season >= 2000 && season <= 2100)) return json({ error: "bad season" }, 400);
+    const { days, behind } = await nbaSeasonDays(env, season, 5);
+    return json({ season, ...standings(days, "days"), days, behind });
+  }
+
+  /* POST /api/nba/lock — seal the signed-in user's entry for a day. */
+  if (path === "/api/nba/lock" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
+    const { date, picks } = body || {};
+    if (!isDate(date)) return json({ error: "bad date" }, 400);
+
+    const user = await whoIs(env, request, url);
+    if (!user) return needAuth();
+
+    const board = await env.PICKS.get(`nba:board:${date}`, "json");
+    if (!board) return json({ error: "This slate isn't open yet." }, 409);
+    const open = openGames(board);
+    if (!open.length) return json({ error: "Every game has tipped off. Nothing left to pick." }, 409);
+
+    const key = `nba:entry:${date}:${user.id}`;
+    if (await env.PICKS.get(key)) return json({ error: "You're already locked in for this slate." }, 409);
+
+    const { clean, error } = cleanPicks(open, picks);
+    if (error) return json({ error }, 400);
+
+    await env.PICKS.put(key, JSON.stringify({
+      id: user.id,
+      name: user.name,
+      lockedAt: new Date().toISOString(),
+      picks: clean,
+      eligible: open.length,
+    }));
+    await addUserId(env, user.id);
+    return json({ ...(await nbaDayState(env, date, user)), ...clock });
+  }
+
+  /* POST /api/nba/mortal — one pick from your locked slate, set once. */
+  if (path === "/api/nba/mortal" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "bad JSON" }, 400); }
+    const { date, gameId, kind } = body || {};
+    if (!isDate(date)) return json({ error: "bad date" }, 400);
+
+    const user = await whoIs(env, request, url);
+    if (!user) return needAuth();
+
+    const key = `nba:entry:${date}:${user.id}`;
+    const entry = await env.PICKS.get(key, "json");
+    if (!entry) return json({ error: "Lock in your slate first, then pick your mortal lock from it." }, 409);
+    if (entry.mortal) return json({ error: "Your mortal lock is already set for this slate." }, 409);
+
+    const board = await env.PICKS.get(`nba:board:${date}`, "json");
+    const g = board && board.games.find((x) => x.id === String(gameId));
+    if (!g) return json({ error: "That game isn't on this slate." }, 400);
+    if (!openGames(board).some((x) => x.id === g.id)) {
+      return json({ error: "That game has already tipped off." }, 409);
+    }
+
+    const pick = entry.picks[g.id];
+    if (!pick) return json({ error: "You don't have a pick in that game." }, 400);
+    let choice;
+    if (kind === "spread") choice = pick.side;
+    else if (kind === "total" && (pick.total === "over" || pick.total === "under")) choice = pick.total;
+    else return json({ error: "Choose your spread pick or your total pick." }, 400);
+
+    entry.mortal = { gameId: g.id, kind, choice, lockedAt: new Date().toISOString() };
+    await env.PICKS.put(key, JSON.stringify(entry));
+    return json({ ...(await nbaDayState(env, date, user)), ...clock });
+  }
+
+  return json({ error: "not found" }, 404);
+}
+
 /* ---------------- routes ---------------- */
 
 async function handle(request, env) {
@@ -422,8 +904,10 @@ async function handle(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   if (path === "/" || path === "/api") {
-    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/password", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/mortal", "/api/leaderboard", "/api/planner"] });
+    return json({ ok: true, service: "sunday-slip", endpoints: ["/api/register", "/api/login", "/api/logout", "/api/me", "/api/password", "/api/week", "/api/board", "/api/scores", "/api/lock", "/api/mortal", "/api/leaderboard", "/api/planner", "/api/nba/day", "/api/nba/days", "/api/nba/board", "/api/nba/scores", "/api/nba/lock", "/api/nba/mortal", "/api/nba/leaderboard"] });
   }
+
+  if (path.startsWith("/api/nba/")) return handleNba(request, env, url, path);
 
   /* ---- accounts ---- */
 
@@ -455,6 +939,7 @@ async function handle(request, env) {
     await env.PICKS.put(`user:${id}`, JSON.stringify({
       id, name, salt, hash: await derive(password, salt), createdAt: new Date().toISOString(),
     }));
+    await addUserId(env, id);
 
     return json({ token: await startSession(env, id), user: { id, name } });
   }
@@ -584,7 +1069,6 @@ async function handle(request, env) {
     if (!(season >= 2000 && season <= 2100)) return json({ error: "bad season" }, 400);
 
     const boards = await env.PICKS.list({ prefix: `board:${season}-` });
-    const players = {};
     const weeks = [];
 
     for (const k of boards.keys) {
@@ -630,38 +1114,10 @@ async function handle(request, env) {
 
       if (!rows.length) continue;
       weeks.push({ week, final: allFinal, players: rows });
-      for (const r of rows) {
-        const p = players[r.name] || (players[r.name] = {
-          name: r.name, weeks: 0,
-          spread: { w: 0, l: 0, p: 0 }, total: { w: 0, l: 0, p: 0 }, combined: { w: 0, l: 0, p: 0 },
-          mortal: { w: 0, l: 0, p: 0 },
-        });
-        // A week counts once something in it has actually been graded.
-        if (r.graded > 0) p.weeks++;
-        // Weeks graded before mortal locks existed have no mortal field.
-        const rm = r.mortal || { w: 0, l: 0, p: 0 };
-        for (const res of ["w", "l", "p"]) p.mortal[res] += rm[res];
-        for (const bucket of ["spread", "total", "combined"]) {
-          for (const res of ["w", "l", "p"]) p[bucket][res] += r[bucket][res];
-        }
-      }
     }
 
     weeks.sort((a, b) => a.week - b.week);
-    const table = Object.values(players).sort((a, b) => {
-      const ra = a.combined.w + a.combined.l, rb = b.combined.w + b.combined.l;
-      return (rb ? b.combined.w / rb : -1) - (ra ? a.combined.w / ra : -1);
-    });
-    // Mortal locks rank on their own: best record first, more wins breaking
-    // ties, and anyone yet to have one graded at the bottom.
-    const mortalTable = Object.values(players)
-      .map((p) => ({ name: p.name, ...p.mortal }))
-      .sort((a, b) => {
-        const ra = a.w + a.l, rb = b.w + b.l;
-        const pa = ra ? a.w / ra : -1, pb = rb ? b.w / rb : -1;
-        return pb - pa || b.w - a.w;
-      });
-    return json({ season, players: table, mortal: mortalTable, weeks });
+    return json({ season, ...standings(weeks, "weeks"), weeks });
   }
 
   /* POST /api/mortal — one pick from your locked slate, set once. */
@@ -728,20 +1184,9 @@ async function handle(request, env) {
       return json({ error: "You're already locked in for this week." }, 409);
     }
 
-    // Every game still open, or it isn't an entry. Games already under way
-    // are dropped rather than rejected — they simply aren't yours to pick.
-    const clean = {};
-    for (const g of open) {
-      const p = (picks || {})[g.id];
-      if (!p || (p.side !== 0 && p.side !== 1)) {
-        return json({ error: "Every game needs a side picked." }, 400);
-      }
-      const needsTotal = g.total !== null && g.total !== undefined;
-      if (needsTotal && p.total !== "over" && p.total !== "under") {
-        return json({ error: "Every game needs an over or under." }, 400);
-      }
-      clean[g.id] = { side: p.side, total: needsTotal ? p.total : null };
-    }
+    // Every game still open, or it isn't an entry.
+    const { clean, error } = cleanPicks(open, picks);
+    if (error) return json({ error }, 400);
 
     await env.PICKS.put(
       `entry:${key}:${id}`,
@@ -774,8 +1219,18 @@ export default {
     }
   },
 
-  /** 5am ET Sunday: pull the lines once and freeze them for the week. */
+  /** Two triggers share this Worker: Sunday Slip's fires late Friday night
+   *  ET to freeze the week, Nightly Slip's each morning to freeze the day.
+   *  They're told apart by the Eastern clock rather than the cron string,
+   *  so however a trigger was typed into the dashboard, a morning run can
+   *  never freeze an NFL week days early. The NBA's runs land between 7
+   *  and 10am ET; nothing the NFL has ever used comes near that. */
   async scheduled(event, env, ctx) {
+    const { hour } = eastern(event.scheduledTime);
+    if (hour >= 6 && hour < 12) {
+      ctx.waitUntil(nbaMorning(env, event.scheduledTime));
+      return;
+    }
     ctx.waitUntil(
       (async () => {
         const res = await freezeBoard(env);

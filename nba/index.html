@@ -1,0 +1,1722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nightly Slip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F3EFE9; --surface:#FFFFFF; --sunk:#ECE6DD;
+  --ink:#1C1712; --ink-2:#6B6056; --ink-3:#8F8479;
+  --line:#E0D6C9; --line-strong:#C9BBAA;
+  --accent:#B4470F; --accent-ink:#FFFFFF; --accent-soft:#F6E3D6;
+  --num:#1D4E9E; --gold:#9A6E05;
+  --win:#1E7A46; --loss:#B42318; --push:#8F8479;
+  --shadow:0 1px 2px rgba(28,23,18,.06), 0 8px 20px -12px rgba(28,23,18,.24);
+  --stripe-filter:none;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13110F; --surface:#1D1A17; --sunk:#171411;
+    --ink:#F0EBE5; --ink-2:#B2A79B; --ink-3:#877C71;
+    --line:#322B25; --line-strong:#463D35;
+    --accent:#F08A4B; --accent-ink:#1A0D04; --accent-soft:#3A2618;
+    --num:#93B8F5; --gold:#F2C14E;
+    --win:#5FBE86; --loss:#F08A80; --push:#877C71;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px -14px rgba(0,0,0,.8);
+    --stripe-filter:brightness(1.9) saturate(1.15);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13110F; --surface:#1D1A17; --sunk:#171411;
+  --ink:#F0EBE5; --ink-2:#B2A79B; --ink-3:#877C71;
+  --line:#322B25; --line-strong:#463D35;
+  --accent:#F08A4B; --accent-ink:#1A0D04; --accent-soft:#3A2618;
+  --num:#93B8F5; --gold:#F2C14E;
+  --win:#5FBE86; --loss:#F08A80; --push:#877C71;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 24px -14px rgba(0,0,0,.8);
+  --stripe-filter:brightness(1.9) saturate(1.15);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size:16px; line-height:1.5;
+}
+.wrap{max-width:640px; margin:0 auto; padding-inline:18px; padding-block:28px 0}
+button{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+.hidden{display:none !important}
+
+/* ---------- header ---------- */
+.eyebrow{
+  font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:11px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3); margin:0 0 6px;
+}
+h1{
+  font-family:"Oswald", "IBM Plex Sans", sans-serif; font-weight:600;
+  font-size:clamp(30px,8vw,40px); line-height:1.02; letter-spacing:.005em;
+  margin:0; text-wrap:balance; text-transform:uppercase;
+}
+.sub{margin:8px 0 0; color:var(--ink-2); font-size:15px; max-width:48ch}
+.topbar{display:flex; align-items:flex-start; justify-content:space-between; gap:14px}
+.whoami{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); text-align:right; white-space:nowrap;
+}
+.whoami b{display:block; color:var(--ink); font-size:13px; letter-spacing:.06em}
+.headright{display:flex; flex-direction:column; align-items:flex-end; gap:6px}
+.linkbtn{
+  background:none; border:0; padding:2px 0; cursor:pointer; white-space:nowrap;
+  font-size:13px; font-weight:500; color:var(--ink-2); border-bottom:1px solid var(--line-strong);
+}
+.linkbtn:hover{color:var(--ink)}
+.livebar{
+  display:flex; align-items:center; gap:8px; margin:10px 0 0;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);
+}
+.pulse{
+  width:7px; height:7px; border-radius:99px; background:var(--accent); flex:none;
+  animation:pulse 2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){ .pulse{animation:none} }
+
+/* ---------- day nav ---------- */
+.daynav{
+  display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px;
+  margin-top:20px; padding:8px; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+}
+.navbtn{
+  width:40px; height:40px; border-radius:8px; border:1px solid transparent; background:var(--sunk);
+  cursor:pointer; font-family:"Oswald",sans-serif; font-size:20px; line-height:1; color:var(--ink);
+}
+.navbtn:hover{background:var(--accent-soft)}
+.navbtn[disabled]{color:var(--line-strong); cursor:default; background:transparent}
+.daylabel{text-align:center; min-width:0}
+.daylabel b{
+  display:block; font-family:"Oswald",sans-serif; font-weight:600; text-transform:uppercase;
+  font-size:20px; letter-spacing:.03em; line-height:1.15;
+}
+.daylabel span{
+  display:block; font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+}
+
+/* ---------- source strip ---------- */
+.source{
+  display:flex; align-items:center; gap:8px; margin-top:14px;
+  font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);
+}
+.source + .source{margin-top:6px}
+.led{width:7px; height:7px; border-radius:99px; background:var(--ink-3); flex:none}
+.source.live .led{background:var(--accent)}
+.source.live{color:var(--ink-2)}
+.source.warn .led{background:var(--gold)}
+.source .linkbtn{flex:none; font-family:"IBM Plex Sans",sans-serif; text-transform:none; letter-spacing:0; font-size:12.5px}
+
+/* ---------- panels ---------- */
+.panel{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:20px; margin-top:18px;
+}
+.panel h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:20px; margin:0 0 8px; letter-spacing:.02em}
+.panel p{margin:0 0 14px; color:var(--ink-2); font-size:14.5px}
+.panel p:last-child{margin-bottom:0}
+.field{
+  display:flex; align-items:center; gap:10px; margin-bottom:12px;
+  padding:12px 14px; background:var(--sunk); border:1px solid var(--line); border-radius:8px;
+}
+.field label{
+  font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); white-space:nowrap;
+}
+.field input{
+  flex:1 1 auto; min-width:0; border:0; background:transparent; color:var(--ink);
+  font:inherit; font-weight:500; padding:2px 0;
+}
+.field input:focus{outline:none}
+.field input::placeholder{color:var(--ink-3); font-weight:400}
+
+/* ---------- progress ---------- */
+.progress{margin:22px 0 14px}
+.progress-top{
+  display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3);
+}
+.progress-top b{color:var(--ink); font-variant-numeric:tabular-nums}
+.track{height:3px; background:var(--sunk); border-radius:99px; margin-top:8px; overflow:hidden}
+.fill{height:100%; width:0%; background:var(--accent); transition:width .25s ease}
+
+/* ---------- game ---------- */
+.games{display:flex; flex-direction:column; gap:14px; margin:0; padding:0; list-style:none}
+.game{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px; box-shadow:var(--shadow);
+}
+.game.done{border-color:var(--accent)}
+.game.shut{opacity:.55}
+.game.shut .side, .game.shut .tot{cursor:default}
+.game.shut .side:hover, .game.shut .tot:hover{background:var(--sunk); color:var(--ink-2)}
+.gm-head{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;
+  font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+}
+.gm-head .when{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.chip{white-space:nowrap; color:var(--ink-3)}
+.game.done .chip{color:var(--accent)}
+.matchup{display:grid; grid-template-columns:1fr auto 1fr; align-items:stretch; gap:6px}
+.at{
+  align-self:center; font-family:"Oswald",sans-serif; font-size:12px; letter-spacing:.1em;
+  color:var(--ink-3); text-transform:uppercase; padding:0 2px;
+}
+.side{
+  display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer;
+  background:var(--sunk); border:1px solid transparent; border-radius:8px;
+  padding:12px 6px 10px; text-align:center; transition:background .15s ease, border-color .15s ease;
+  position:relative; overflow:hidden;
+}
+.side::before{
+  content:""; position:absolute; inset:0 0 auto 0; height:3px;
+  background:var(--team, var(--line-strong)); filter:var(--stripe-filter);
+}
+.side:hover{background:var(--accent-soft)}
+.side .city{font-size:11px; color:var(--ink-2); letter-spacing:.04em}
+.side .team{
+  font-family:"Oswald",sans-serif; font-weight:500; text-transform:uppercase;
+  font-size:clamp(16px,4.4vw,21px); line-height:1.1; letter-spacing:.01em;
+}
+.side .line{
+  font-family:"IBM Plex Mono", monospace; font-weight:600; font-size:15px;
+  font-variant-numeric:tabular-nums; color:var(--num); margin-top:3px;
+}
+.side[aria-pressed="true"]{background:var(--accent); border-color:var(--accent)}
+.side[aria-pressed="true"] .team,
+.side[aria-pressed="true"] .line,
+.side[aria-pressed="true"] .city{color:var(--accent-ink)}
+.side[aria-pressed="true"] .city{opacity:.75}
+
+/* ---------- total ---------- */
+.totalrow{
+  display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+  margin-top:10px; padding-top:10px; border-top:1px solid var(--line);
+}
+.totalrow .tlabel{
+  font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3);
+}
+.totalrow .tlabel b{color:var(--ink-2); font-variant-numeric:tabular-nums}
+.tbtns{display:flex; gap:6px; flex:1 1 222px; justify-content:flex-end}
+.tot{
+  flex:0 1 116px; white-space:nowrap; cursor:pointer; background:var(--sunk); border:1px solid transparent;
+  border-radius:99px; padding:7px 10px; font-size:13px; font-weight:600;
+  font-family:"IBM Plex Mono", monospace; letter-spacing:.05em;
+  color:var(--ink-2); transition:background .15s ease, color .15s ease;
+}
+.tot:hover{background:var(--accent-soft); color:var(--ink)}
+.tot[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+
+/* ---------- buttons ---------- */
+.bar{
+  position:sticky; bottom:0; z-index:5; margin-top:18px;
+  padding-block:12px 18px; background:linear-gradient(to bottom, transparent, var(--bg) 32%);
+}
+.btn{
+  width:100%; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink);
+  border-radius:8px; padding:14px 16px; cursor:pointer; font-weight:600; font-size:16px;
+  font-family:"Oswald",sans-serif; letter-spacing:.06em; text-transform:uppercase;
+  box-shadow:var(--shadow);
+}
+.btn[disabled]{background:var(--sunk); border-color:var(--line); color:var(--ink-3); cursor:not-allowed; box-shadow:none}
+.btn.ghost{background:transparent; color:var(--ink); border-color:var(--line-strong); box-shadow:none}
+.btn.ghost:hover{background:var(--sunk)}
+
+/* ---------- slip ---------- */
+.slip-head{padding-bottom:14px; border-bottom:1px dashed var(--line-strong); margin-bottom:4px}
+.slip-head h2{margin-bottom:2px}
+.slip ol, ol.slip{list-style:none; margin:0; padding:0}
+.slip li{padding:11px 0; border-bottom:1px solid var(--line)}
+.slip li:last-child{border-bottom:0}
+.prow{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.prow + .prow{margin-top:5px}
+.pick-team{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; letter-spacing:.01em}
+.pick-opp{display:block; font-family:"IBM Plex Sans",sans-serif; text-transform:none; font-size:12px; color:var(--ink-2); letter-spacing:0}
+.pick-tag{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.pick-line{
+  font-family:"IBM Plex Mono",monospace; font-weight:600; font-variant-numeric:tabular-nums;
+  font-size:16px; color:var(--num); white-space:nowrap;
+}
+.pick-line.sm{font-size:13px}
+.stack{display:flex; flex-direction:column; gap:8px; margin-top:16px}
+.note{font-size:13.5px; color:var(--ink-2); text-align:center; margin:6px 0 0}
+.note.ok{color:var(--accent); font-weight:600}
+.note.bad{color:var(--loss); font-weight:600}
+
+/* ---------- roster ---------- */
+.roster{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
+.roster:empty{display:none}
+.who{
+  display:flex; align-items:center; gap:7px; padding:7px 12px 7px 10px;
+  background:var(--sunk); border:1px solid var(--line); border-radius:99px;
+  font-size:13.5px; font-weight:500;
+}
+.who .dot{width:7px; height:7px; border-radius:99px; background:var(--accent); flex:none}
+
+/* ---------- standings ---------- */
+.standings{display:flex; flex-direction:column; gap:10px; margin-top:4px}
+.stand{
+  display:grid; grid-template-columns:1fr auto auto auto; gap:10px; align-items:baseline;
+  padding:12px 14px; background:var(--sunk); border:1px solid var(--line); border-radius:8px;
+}
+.stand.lead{border-color:var(--accent); background:var(--accent-soft)}
+.stand.two{grid-template-columns:1fr auto auto}
+.lbsec{margin-top:26px !important}
+.stand .nm .rk{color:var(--ink-3); font-size:14px}
+.stand .nm{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:18px; letter-spacing:.02em; min-width:0; overflow:hidden; text-overflow:ellipsis}
+.stat{text-align:right}
+.stat .k{
+  display:block; font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3);
+}
+.stat .v{
+  font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:16px;
+  font-variant-numeric:tabular-nums; color:var(--ink);
+}
+.stat.big .v{font-size:19px; color:var(--accent)}
+.reclabel{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3);
+  letter-spacing:.06em; margin-top:6px;
+}
+
+/* ---------- mortal lock ---------- */
+.panel.mortal{border-color:var(--gold)}
+.panel.mortal .eyebrow{color:var(--gold)}
+.mchoices{display:flex; flex-direction:column; gap:6px; max-height:420px; overflow-y:auto; margin-top:4px}
+.mchoice{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px; width:100%;
+  text-align:left; cursor:pointer; padding:10px 12px; border-radius:8px;
+  background:var(--sunk); border:1px solid transparent; transition:background .15s ease, border-color .15s ease;
+}
+.mchoice:hover{background:var(--accent-soft)}
+.mchoice[aria-pressed="true"]{border-color:var(--gold); background:var(--surface)}
+.mchoice .mpick{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:16px; letter-spacing:.01em}
+.mchoice .mctx{display:block; font-family:"IBM Plex Sans",sans-serif; text-transform:none; font-size:12px; color:var(--ink-2); letter-spacing:0}
+.mchoice .mline{font-family:"IBM Plex Mono",monospace; font-weight:600; font-variant-numeric:tabular-nums; color:var(--num); white-space:nowrap}
+.mset{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  padding:14px; border:1px solid var(--gold); border-radius:8px; margin-top:4px;
+}
+.mset .mpick{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:24px; letter-spacing:.01em; line-height:1.1}
+.mset .mctx{display:block; font-size:13px; color:var(--ink-2); margin-top:2px}
+.mres{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px; letter-spacing:.1em; text-transform:uppercase; white-space:nowrap; color:var(--ink-3)}
+.mres.w{color:var(--win)} .mres.l{color:var(--loss)} .mres.p{color:var(--push)}
+.mothers{display:flex; flex-direction:column; gap:0; margin-top:14px}
+.mothers:empty{display:none}
+.mrow{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px}
+.mrow .who3{font-family:"Oswald",sans-serif; text-transform:uppercase; letter-spacing:.02em; min-width:64px}
+.mrow .what{flex:1; color:var(--ink-2)}
+.btn.gold{background:var(--gold); border-color:var(--gold); color:var(--surface)}
+.btn.gold[disabled]{background:var(--sunk); border-color:var(--line); color:var(--ink-3)}
+.mtag{
+  display:inline-block; margin-left:5px; padding:0 4px; border-radius:3px;
+  font-family:"IBM Plex Mono",monospace; font-size:9px; letter-spacing:.08em;
+  color:var(--surface); background:var(--gold); vertical-align:middle;
+}
+
+/* ---------- reveal table ---------- */
+.tablewrap{overflow-x:auto; margin-top:4px; border:1px solid var(--line); border-radius:8px}
+table.reveal{border-collapse:collapse; width:100%; font-size:13.5px}
+table.reveal th, table.reveal td{padding:8px 10px; text-align:left; white-space:nowrap}
+table.reveal thead th{
+  position:sticky; top:0; background:var(--sunk); color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; border-bottom:1px solid var(--line);
+}
+table.reveal tr.gm th{
+  background:var(--sunk); font-family:"Oswald",sans-serif; text-transform:uppercase;
+  font-size:13px; letter-spacing:.03em; color:var(--ink); font-weight:500;
+  border-top:1px solid var(--line);
+}
+table.reveal tr.gm th .sc{font-family:"IBM Plex Mono",monospace; color:var(--ink-2); font-size:11px; letter-spacing:.05em}
+table.reveal tr.gm th .sc.on{color:var(--accent)}
+table.reveal td.lab{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+table.reveal td.pick{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink-2)}
+table.reveal td.pick.w{color:var(--win)}
+table.reveal td.pick.l{color:var(--loss)}
+table.reveal td.pick.p{color:var(--push)}
+table.reveal td.pick .mk{font-family:"IBM Plex Sans",sans-serif; margin-left:3px}
+
+.empty{
+  background:var(--surface); border:1px dashed var(--line-strong); border-radius:var(--radius);
+  padding:26px 20px; text-align:center; color:var(--ink-2); margin-top:18px;
+}
+.empty h2{font-family:"Oswald",sans-serif; text-transform:uppercase; font-size:19px; margin:0 0 6px; color:var(--ink)}
+.empty p{margin:0; font-size:14px}
+
+footer{
+  padding:28px 0 36px; color:var(--ink-3); font-size:12px; text-align:center;
+  font-family:"IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase;
+}
+footer a{color:var(--ink-2); text-decoration:none; border-bottom:1px solid var(--line-strong)}
+footer a:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">NBA · Every night</p>
+      <h1>Nightly Slip</h1>
+      <p class="sub" id="tagline">Two calls per game: who covers the spread, and whether the combined score goes over or under the total. Lines are set at 8am ET.</p>
+    </div>
+    <div class="headright">
+      <button class="linkbtn" id="lbBtn" type="button">Leaderboard</button>
+      <div class="whoami hidden" id="whoami">Signed in as<b id="whoamiName"></b></div>
+      <button class="linkbtn hidden" id="signOut" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <nav class="daynav hidden" id="daynav" aria-label="Slates">
+    <button class="navbtn" id="prevDay" type="button" aria-label="Earlier slate">‹</button>
+    <div class="daylabel"><b id="dayName"></b><span id="dayDate"></span></div>
+    <button class="navbtn" id="nextDay" type="button" aria-label="Later slate">›</button>
+  </nav>
+
+  <p class="source" id="source"><span class="led"></span><span id="sourceText">Connecting</span></p>
+  <p class="source warn hidden" id="todayNote"><span class="led"></span><span id="todayText"></span><button class="linkbtn hidden" id="toLatest" type="button">Back to the latest</button></p>
+  <p class="source warn hidden" id="deadline"><span class="led"></span><span id="deadlineText"></span></p>
+
+  <!-- sign in -->
+  <section class="panel hidden" id="auth">
+    <h2 id="authTitle">Sign in</h2>
+    <p id="authSub">Same account as Sunday Slip. Your picks and your record follow you to any phone or laptop.</p>
+    <div class="field">
+      <label for="authName">Name</label>
+      <input id="authName" type="text" placeholder="First name is plenty" autocomplete="username" maxlength="24">
+    </div>
+    <div class="field">
+      <label for="authPass">Password</label>
+      <input id="authPass" type="password" placeholder="At least 4 characters" autocomplete="current-password">
+    </div>
+    <div class="field hidden" id="codeField">
+      <label for="authCode">Code</label>
+      <input id="authCode" type="text" placeholder="From whoever runs the pool" autocomplete="off">
+    </div>
+    <button class="btn" id="authBtn" type="button">Sign in</button>
+    <button class="btn ghost" id="authSwap" type="button" style="margin-top:8px">Create an account</button>
+    <p class="note" id="authNote"></p>
+  </section>
+
+  <!-- waiting for the board -->
+  <section class="empty hidden" id="waiting">
+    <h2 id="waitingTitle">Lines set at 8am ET</h2>
+    <p id="waitingText">Every morning at 8am ET the day's lines are pulled once and frozen, so everyone plays the same numbers. Check back after that.</p>
+  </section>
+
+  <!-- leaderboard -->
+  <section class="panel hidden" id="leaderboard">
+    <h2>Leaderboard</h2>
+    <p id="lbSub">Loading…</p>
+    <div class="standings" id="lbTable"></div>
+    <h2 class="lbsec">Mortal locks</h2>
+    <p id="lbMortalSub">One pick a night, chosen from your own slate.</p>
+    <div class="standings" id="lbMortal"></div>
+    <div class="stack"><button class="btn ghost" id="lbBack" type="button">Back</button></div>
+  </section>
+
+  <!-- the board -->
+  <main class="hidden" id="picker">
+    <div class="progress">
+      <div class="progress-top"><span>Picks made</span><b id="count">0 of 0</b></div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+    </div>
+    <p class="source warn hidden" id="late"><span class="led"></span><span id="lateText"></span></p>
+    <ul class="games" id="games"></ul>
+    <div class="bar">
+      <button class="btn" id="reviewBtn" type="button" disabled>Pick every game first</button>
+    </div>
+  </main>
+
+  <!-- review before locking -->
+  <section class="panel slip hidden" id="review">
+    <div class="slip-head">
+      <h2 id="reviewTitle">Check it over</h2>
+      <p>Once you lock in, these can't be changed — and only then do you get to see anyone else's.</p>
+    </div>
+    <ol id="reviewList"></ol>
+    <div class="stack">
+      <button class="btn" id="lockBtn" type="button">Lock in my picks</button>
+      <button class="btn ghost" id="backBtn" type="button">Keep editing</button>
+    </div>
+    <p class="note" id="lockNote"></p>
+  </section>
+
+  <!-- locked in, or the slate is shut -->
+  <section class="hidden" id="locked">
+    <section class="panel">
+      <h2 id="lockedTitle">You're locked in</h2>
+      <p id="lockedSub">Nothing left to do but watch.</p>
+      <p class="livebar hidden" id="livebar"><span class="pulse"></span><span id="liveText"></span></p>
+      <div class="roster" id="roster"></div>
+    </section>
+
+    <section class="panel mortal hidden" id="mortalPanel">
+      <p class="eyebrow">One pick · its own leaderboard</p>
+      <h2 id="mortalTitle">Mortal lock</h2>
+      <p id="mortalSub"></p>
+      <div class="mchoices" id="mortalList"></div>
+      <div class="stack hidden" id="mortalActions">
+        <button class="btn gold" id="mortalBtn" type="button" disabled>Choose one pick</button>
+      </div>
+      <p class="note" id="mortalNote"></p>
+      <div class="mothers" id="mortalOthers"></div>
+    </section>
+
+    <section class="panel hidden" id="results">
+      <h2>How everyone did</h2>
+      <p id="resultsSub"></p>
+      <div class="standings" id="standings"></div>
+    </section>
+
+    <section class="panel hidden" id="compare">
+      <h2 id="compareTitle">Everyone's picks</h2>
+      <p id="compareSub"></p>
+      <div class="tablewrap"><table class="reveal" id="revealTable"></table></div>
+    </section>
+
+    <section class="panel hidden" id="mine">
+      <h2>Your picks</h2>
+      <ol class="slip" id="mineList"></ol>
+    </section>
+  </section>
+
+  <footer>No money changes hands. Probably. · <a href="../">Sunday Slip (NFL)</a></footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===== CONFIG =================================================== */
+  /* The same Worker as Sunday Slip — the NBA lives under /api/nba/ on
+     it, and the accounts are shared. Until this is set the page runs as
+     a read-only preview and nothing can be locked in.                  */
+  var API_BASE = "https://sunday-slip.tonycorrales34.workers.dev";
+
+  /* Board shown in preview mode only, so the page is never a blank
+     shell. The real board always comes from the Worker.              */
+  var SNAPSHOT = {"season":2027,"date":"2026-10-20","capturedAt":"2026-10-20T18:24:00Z","games":[{"id":"401909088","date":"2026-10-20T19:00Z","net":"NBC","total":220.5,"sides":[{"abbr":"BOS","nick":"Celtics","city":"Boston","color":"#008348","spread":-1.5},{"abbr":"DET","nick":"Pistons","city":"Detroit","color":"#1d428a","spread":1.5}]},{"id":"401909089","date":"2026-10-20T23:00Z","net":"NBC","total":231.5,"sides":[{"abbr":"PHI","nick":"76ers","city":"Philadelphia","color":"#1d428a","spread":4.5},{"abbr":"NY","nick":"Knicks","city":"New York","color":"#1d428a","spread":-4.5}]},{"id":"401909090","date":"2026-10-21T01:30Z","net":"NBC","total":230.5,"sides":[{"abbr":"OKC","nick":"Thunder","city":"Oklahoma City","color":"#007ac1","spread":-1.5},{"abbr":"SA","nick":"Spurs","city":"San Antonio","color":"#000000","spread":1.5}]}]};
+  /* ================================================================ */
+
+  var $ = function(id){ return document.getElementById(id); };
+  var show = function(id, on){
+    var el = $(id);
+    // A missing id means a view was renamed and a caller wasn't: shout
+    // rather than throwing halfway through hiding the other panels.
+    if (!el) { console.error("show(): no element #" + id); return; }
+    el.classList.toggle("hidden", !on);
+  };
+
+  var state = {
+    board: null, you: null, entries: [], roster: [],
+    picks: {}, drafts: {}, scores: null, preview: !API_BASE,
+    token: "", user: null, codeRequired: false, authMode: "login",
+    mortal: null, mortals: [], mortalRoster: [], mortalPick: null,
+    today: "", beforeLines: false, linesHour: 8, days: [], pinned: false
+  };
+
+  /* ---------- identity, kept on this device ---------- */
+  /* Same key as Sunday Slip: one sign-in covers both. */
+  function store(k, v){
+    try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }
+    catch(e){ return null; }
+  }
+
+  /* ---------- formatting ---------- */
+  function fmtSpread(n){ return !n ? "PK" : (n < 0 ? "-" : "+") + Math.abs(n); }
+  function fmtTime(iso){
+    var d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+  }
+  function fmtTip(g){
+    var s = fmtTime(g.date) || "Tip-off TBD";
+    return g.net ? s + " · " + g.net : s;
+  }
+  /* A slate's date (YYYY-MM-DD, Eastern) as a label. Read at noon UTC and
+     printed in UTC so no local time zone can tip it onto another day. */
+  function fmtDay(date, opts){
+    var o = { timeZone:"UTC" };
+    for (var k in opts) o[k] = opts[k];
+    return new Date(date + "T12:00:00Z").toLocaleDateString(undefined, o);
+  }
+  function dayBefore(date){
+    var d = new Date(date + "T12:00:00Z");
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+  function dayName(date){
+    if (date === state.today) return "Tonight";
+    if (state.today && date === dayBefore(state.today)) return "Last night";
+    return fmtDay(date, { weekday:"short", month:"short", day:"numeric" });
+  }
+  /* 2026-27 is season 2027, as ESPN names it. */
+  function seasonOf(date){
+    var y = parseInt(date.slice(0, 4), 10), m = parseInt(date.slice(5, 7), 10);
+    return m >= 8 ? y + 1 : y;
+  }
+  function seasonLabel(s){ return (s - 1) + "–" + String(s).slice(2); }
+  function hourLabel(h){ return (h % 12 || 12) + (h < 12 ? "am" : "pm"); }
+  function pct(w, l){
+    var n = w + l;
+    return n ? Math.round((w / n) * 100) + "%" : "—";
+  }
+
+  /* ---------- api ---------- */
+  function api(path, opts){
+    if (state.preview) return Promise.reject(new Error("preview"));
+    var o = opts || {};
+    var headers = {};
+    if (o.body) headers["Content-Type"] = "application/json";
+    if (state.token) headers["Authorization"] = "Bearer " + state.token;
+    return fetch(API_BASE + path, {
+      method: o.method || "GET",
+      headers: headers,
+      body: o.body ? JSON.stringify(o.body) : undefined,
+      cache: "no-store"
+    }).then(function(r){
+      return r.json().then(function(j){
+        // Session gone or expired: back to the sign-in screen, not an error.
+        if (r.status === 401 && state.token){
+          forgetSession();
+          showAuth("login", "Signed out — sign back in to pick.");
+        }
+        if (!r.ok) throw new Error(j && j.error ? j.error : "HTTP " + r.status);
+        return j;
+      });
+    });
+  }
+
+  /* ---------- grading ---------- */
+  /* Spread: your team's margin plus the number it laid or got. Total:
+     the two scores added up against the posted number. A dead-even
+     result is a push — it counts for nobody and is left out of the
+     percentages rather than counted as a loss. */
+  function grade(entry){
+    var out = { spread:{w:0,l:0,p:0}, total:{w:0,l:0,p:0}, per:{}, graded:0 };
+    if (!state.scores || !state.board) return out;
+
+    state.board.games.forEach(function(g){
+      var sc = state.scores[g.id];
+      if (!sc || !sc.completed || sc.away === null || sc.home === null) return;
+      var pick = entry.picks[g.id];
+      if (!pick) return;
+      out.graded++;
+      out.per[g.id] = {};
+
+      var mine = pick.side === 0 ? sc.away : sc.home;
+      var theirs = pick.side === 0 ? sc.home : sc.away;
+      var margin = mine - theirs + g.sides[pick.side].spread;
+      var r = margin > 0 ? "w" : margin < 0 ? "l" : "p";
+      out.spread[r]++;
+      out.per[g.id].spread = r;
+
+      if (g.total !== null && g.total !== undefined && pick.total){
+        var comb = sc.away + sc.home;
+        var tr = comb > g.total ? (pick.total === "over" ? "w" : "l")
+               : comb < g.total ? (pick.total === "under" ? "w" : "l")
+               : "p";
+        out.total[tr]++;
+        out.per[g.id].total = tr;
+      }
+    });
+
+    out.combined = {
+      w: out.spread.w + out.total.w,
+      l: out.spread.l + out.total.l,
+      p: out.spread.p + out.total.p
+    };
+    return out;
+  }
+
+  /* ---------- board ---------- */
+  /* A game shuts at its own tip-off. Miss the early game and you lose
+     that one only — the rest of the night is still yours to pick. */
+  function isOpen(g){
+    var t = new Date(g.date).getTime();
+    return isNaN(t) ? true : t > Date.now();
+  }
+  function needed(g){
+    if (!isOpen(g)) return 0;
+    return 1 + (g.total === null || g.total === undefined ? 0 : 1);
+  }
+  function made(g){
+    if (!isOpen(g)) return 0;
+    var p = state.picks[g.id] || {};
+    return (p.side === undefined ? 0 : 1) + (p.total === undefined ? 0 : 1);
+  }
+
+  function renderBoard(){
+    var list = $("games");
+    list.textContent = "";
+    state.board.games.forEach(function(g){
+      var open = isOpen(g);
+      var li = document.createElement("li");
+      li.className = "game" + (open ? "" : " shut");
+      li.id = "card-" + g.id;
+
+      var head = document.createElement("div");
+      head.className = "gm-head";
+      var when = document.createElement("span");
+      when.className = "when";
+      when.textContent = fmtTip(g);
+      var chip = document.createElement("span");
+      chip.className = "chip";
+      head.appendChild(when); head.appendChild(chip);
+
+      var row = document.createElement("div");
+      row.className = "matchup";
+      g.sides.forEach(function(side, idx){
+        if (idx === 1){
+          var at = document.createElement("span");
+          at.className = "at";
+          at.textContent = "at";
+          row.appendChild(at);
+        }
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "side";
+        b.id = "side-" + g.id + "-" + idx;
+        b.setAttribute("aria-pressed", "false");
+        if (side.color) b.style.setProperty("--team", side.color);
+
+        var city = document.createElement("span");
+        city.className = "city"; city.textContent = side.city || " ";
+        var team = document.createElement("span");
+        team.className = "team"; team.textContent = side.nick;
+        var ln = document.createElement("span");
+        ln.className = "line"; ln.textContent = fmtSpread(side.spread);
+        b.appendChild(city); b.appendChild(team); b.appendChild(ln);
+
+        b.disabled = !open;
+        b.addEventListener("click", function(){
+          if (!isOpen(g)) return refresh();
+          var p = state.picks[g.id] || (state.picks[g.id] = {});
+          p.side = (p.side === idx) ? undefined : idx;
+          refresh();
+        });
+        row.appendChild(b);
+      });
+
+      li.appendChild(head); li.appendChild(row);
+
+      if (g.total !== null && g.total !== undefined){
+        var tr = document.createElement("div");
+        tr.className = "totalrow";
+        var lab = document.createElement("span");
+        lab.className = "tlabel";
+        lab.textContent = "Total ";
+        var strong = document.createElement("b");
+        strong.textContent = g.total;
+        lab.appendChild(strong);
+        var btns = document.createElement("div");
+        btns.className = "tbtns";
+        ["over", "under"].forEach(function(dir){
+          var t = document.createElement("button");
+          t.type = "button"; t.className = "tot";
+          t.id = "tot-" + g.id + "-" + dir;
+          t.setAttribute("aria-pressed", "false");
+          t.textContent = (dir === "over" ? "Over " : "Under ") + g.total;
+          t.disabled = !open;
+          t.addEventListener("click", function(){
+            if (!isOpen(g)) return refresh();
+            var p = state.picks[g.id] || (state.picks[g.id] = {});
+            p.total = (p.total === dir) ? undefined : dir;
+            refresh();
+          });
+          btns.appendChild(t);
+        });
+        tr.appendChild(lab); tr.appendChild(btns);
+        li.appendChild(tr);
+      }
+      list.appendChild(li);
+    });
+    refresh();
+  }
+
+  function refresh(){
+    var done = 0, want = 0;
+    state.board.games.forEach(function(g){
+      var p = state.picks[g.id] || {};
+      var n = needed(g), m = made(g);
+      want += n; done += m;
+      var card = $("card-" + g.id);
+      if (!card) return;
+      var open = isOpen(g);
+      card.classList.toggle("shut", !open);
+      card.classList.toggle("done", open && m === n);
+      card.querySelector(".chip").textContent = !open ? "Tipped off" : (m === n ? "Locked in" : m + " of " + n);
+      g.sides.forEach(function(_, i){
+        var b = $("side-" + g.id + "-" + i);
+        if (b){ b.setAttribute("aria-pressed", p.side === i ? "true" : "false"); b.disabled = !open; }
+      });
+      ["over", "under"].forEach(function(dir){
+        var t = $("tot-" + g.id + "-" + dir);
+        if (t){ t.setAttribute("aria-pressed", p.total === dir ? "true" : "false"); t.disabled = !open; }
+      });
+    });
+    $("count").textContent = done + " of " + want;
+    $("fill").style.width = (want ? (done / want) * 100 : 0) + "%";
+
+    var shut = state.board.games.filter(function(g){ return !isOpen(g); }).length;
+    var late = $("late");
+    if (shut && shut < state.board.games.length){
+      late.classList.remove("hidden");
+      $("lateText").textContent = shut + (shut === 1 ? " game has" : " games have") +
+        " already tipped off — you can still pick the other " +
+        (state.board.games.length - shut) + ". The ones you missed count 0-0, not as losses.";
+    } else {
+      late.classList.add("hidden");
+    }
+
+    var btn = $("reviewBtn");
+    var all = want > 0 && done === want;
+    btn.disabled = !all || state.preview;
+    btn.textContent = state.preview ? "Preview only — not connected"
+      : want === 0 ? "Every game has tipped off"
+      : all ? "Review and lock in"
+      : (want - done) + " left to pick";
+  }
+
+  /* ---------- review ---------- */
+  function openPicks(){
+    var out = {};
+    state.board.games.forEach(function(g){
+      if (isOpen(g) && state.picks[g.id]) out[g.id] = state.picks[g.id];
+    });
+    return out;
+  }
+
+  /* Only games actually picked — a late entry simply has fewer rows. */
+  function pickRows(picks){
+    return state.board.games.filter(function(g){
+      var p = picks[g.id];
+      return p && (p.side === 0 || p.side === 1);
+    }).map(function(g){
+      var p = picks[g.id];
+      return { g: g, team: g.sides[p.side], opp: g.sides[1 - p.side], dir: p.total };
+    });
+  }
+
+  function fillSlip(ol, picks){
+    ol.textContent = "";
+    pickRows(picks).forEach(function(r){
+      var li = document.createElement("li");
+      var r1 = document.createElement("div");
+      r1.className = "prow";
+      var left = document.createElement("span");
+      left.className = "pick-team";
+      left.textContent = r.team.nick;
+      var opp = document.createElement("span");
+      opp.className = "pick-opp";
+      opp.textContent = "over " + r.opp.nick + " · " + fmtTime(r.g.date);
+      left.appendChild(opp);
+      var right = document.createElement("span");
+      right.className = "pick-line";
+      right.textContent = fmtSpread(r.team.spread);
+      r1.appendChild(left); r1.appendChild(right);
+      li.appendChild(r1);
+      if (r.dir){
+        var r2 = document.createElement("div");
+        r2.className = "prow";
+        var tag = document.createElement("span");
+        tag.className = "pick-tag"; tag.textContent = "Total";
+        var val = document.createElement("span");
+        val.className = "pick-line sm";
+        val.textContent = (r.dir === "over" ? "Over " : "Under ") + r.g.total;
+        r2.appendChild(tag); r2.appendChild(val);
+        li.appendChild(r2);
+      }
+      ol.appendChild(li);
+    });
+  }
+
+  /* ---------- locked view ---------- */
+  function renderRoster(){
+    var box = $("roster");
+    box.textContent = "";
+    state.roster.forEach(function(p){
+      var el = document.createElement("span");
+      el.className = "who";
+      var d = document.createElement("span");
+      d.className = "dot";
+      var t = document.createElement("span");
+      var when = fmtTime(p.lockedAt);
+      t.textContent = p.name + (when ? " · locked " + when : "");
+      el.appendChild(d); el.appendChild(t);
+      box.appendChild(el);
+    });
+  }
+
+  function renderStandings(grades){
+    var box = $("standings");
+    box.textContent = "";
+    var ranked = state.entries.slice().sort(function(a, b){
+      var ga = grades[a.name].combined, gb = grades[b.name].combined;
+      var pa = ga.w + ga.l ? ga.w / (ga.w + ga.l) : -1;
+      var pb = gb.w + gb.l ? gb.w / (gb.w + gb.l) : -1;
+      return pb - pa;
+    });
+
+    ranked.forEach(function(e, i){
+      var gr = grades[e.name];
+      var row = document.createElement("div");
+      row.className = "stand" + (i === 0 && gr.combined.w + gr.combined.l ? " lead" : "");
+
+      var nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = e.name;
+
+      row.appendChild(nm);
+      row.appendChild(stat("Spreads", pct(gr.spread.w, gr.spread.l)));
+      row.appendChild(stat("Totals", pct(gr.total.w, gr.total.l)));
+      row.appendChild(stat("Overall", pct(gr.combined.w, gr.combined.l), true));
+
+      var rec = document.createElement("div");
+      rec.className = "reclabel";
+      rec.style.gridColumn = "1 / -1";
+      rec.textContent = gr.combined.w + "-" + gr.combined.l +
+        (gr.combined.p ? "-" + gr.combined.p + " (pushes don't count either way)" : "") +
+        " · spreads " + gr.spread.w + "-" + gr.spread.l +
+        " · totals " + gr.total.w + "-" + gr.total.l;
+      row.appendChild(rec);
+      box.appendChild(row);
+    });
+  }
+
+  function stat(label, val, big){
+    var s = document.createElement("span");
+    s.className = "stat" + (big ? " big" : "");
+    var k = document.createElement("span");
+    k.className = "k"; k.textContent = label;
+    var v = document.createElement("span");
+    v.className = "v"; v.textContent = val;
+    s.appendChild(k); s.appendChild(v);
+    return s;
+  }
+
+  /* "Final 112–108", "Q3 4:12 · 78–74", or the tip time. */
+  function scoreLine(g, sc){
+    var has = sc && sc.away !== null && sc.home !== null;
+    if (has && sc.completed) return (sc.detail || "Final") + " " + sc.away + "–" + sc.home;
+    if (has && sc.state === "in") return (sc.detail || "Live") + " · " + sc.away + "–" + sc.home;
+    if (sc && sc.state === "post") return sc.detail || "Postponed";
+    return fmtTip(g);
+  }
+
+  function renderCompare(grades){
+    var tbl = $("revealTable");
+    tbl.textContent = "";
+    var people = state.entries;
+
+    var thead = document.createElement("thead");
+    var hr = document.createElement("tr");
+    var th0 = document.createElement("th"); th0.textContent = "Game"; hr.appendChild(th0);
+    people.forEach(function(p){
+      var th = document.createElement("th"); th.textContent = p.name; hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    tbl.appendChild(thead);
+
+    var tb = document.createElement("tbody");
+    state.board.games.forEach(function(g){
+      var sc = state.scores && state.scores[g.id];
+
+      var gr = document.createElement("tr");
+      gr.className = "gm";
+      var gh = document.createElement("th");
+      gh.colSpan = people.length + 1;
+      gh.textContent = g.sides[0].nick + " at " + g.sides[1].nick + " ";
+      var sp = document.createElement("span");
+      sp.className = "sc" + (sc && sc.state === "in" ? " on" : "");
+      sp.textContent = "· " + scoreLine(g, sc);
+      gh.appendChild(sp);
+      gr.appendChild(gh);
+      tb.appendChild(gr);
+
+      // spread row
+      var r1 = document.createElement("tr");
+      var c0 = document.createElement("td"); c0.className = "lab"; c0.textContent = "Spread";
+      r1.appendChild(c0);
+      people.forEach(function(p){
+        var pk = p.picks[g.id] || {};
+        var td = document.createElement("td");
+        td.className = "pick";
+        var res = (grades[p.name].per[g.id] || {}).spread;
+        if (res) td.classList.add(res);
+        var side = g.sides[pk.side];
+        td.textContent = side ? side.abbr || side.nick : "—";
+        if (side) td.textContent += " " + fmtSpread(side.spread);
+        if (isMortal(p.name, g.id, "spread")) td.appendChild(lockTag());
+        if (res) td.appendChild(mark(res));
+        r1.appendChild(td);
+      });
+      tb.appendChild(r1);
+
+      if (g.total !== null && g.total !== undefined){
+        var r2 = document.createElement("tr");
+        var d0 = document.createElement("td"); d0.className = "lab"; d0.textContent = "Total " + g.total;
+        r2.appendChild(d0);
+        people.forEach(function(p){
+          var pk = p.picks[g.id] || {};
+          var td = document.createElement("td");
+          td.className = "pick";
+          var res = (grades[p.name].per[g.id] || {}).total;
+          if (res) td.classList.add(res);
+          td.textContent = pk.total ? (pk.total === "over" ? "Over" : "Under") : "—";
+          if (isMortal(p.name, g.id, "total")) td.appendChild(lockTag());
+          if (res) td.appendChild(mark(res));
+          r2.appendChild(td);
+        });
+        tb.appendChild(r2);
+      }
+    });
+    tbl.appendChild(tb);
+  }
+
+  function mark(res){
+    var mk = document.createElement("span");
+    mk.className = "mk";
+    mk.textContent = res === "w" ? "✓" : res === "l" ? "✗" : "–";
+    return mk;
+  }
+
+  /* Shown once you're locked in — or once every game has tipped, when the
+     seal lifts for everyone, including anyone who sat the night out. */
+  function renderSettled(){
+    show("auth", false); show("picker", false); show("review", false);
+    show("waiting", false); show("locked", true);
+
+    if (state.you){
+      var lockedAt = fmtTime(state.you.lockedAt);
+      $("lockedTitle").textContent = "You're locked in";
+      $("lockedSub").textContent = lockedAt ? "Your picks were sealed at " + lockedAt + "." : "Your picks are in.";
+    } else {
+      $("lockedTitle").textContent = "Picks are closed";
+      $("lockedSub").textContent = state.entries.length
+        ? "Every game has tipped and you sat this one out. Here's how everyone else is doing."
+        : "Every game has tipped. Nobody got an entry in for this slate.";
+    }
+    renderRoster();
+    renderMortal();
+    if (state.you){ fillSlip($("mineList"), state.you.picks); show("mine", true); }
+    else show("mine", false);
+    liveLabel();
+    startLive();
+
+    var grades = {};
+    state.entries.forEach(function(e){ grades[e.name] = grade(e); });
+
+    var anyGraded = state.entries.some(function(e){ return grades[e.name].graded > 0; });
+    var finals = 0;
+    if (state.scores) state.board.games.forEach(function(g){
+      if (state.scores[g.id] && state.scores[g.id].completed) finals++;
+    });
+
+    if (anyGraded){
+      show("results", true);
+      $("resultsSub").textContent = finals === state.board.games.length
+        ? "All " + finals + " games final. Pushes are left out of the percentages."
+        : finals + " of " + state.board.games.length + " games final so far — percentages cover only those.";
+      renderStandings(grades);
+    } else {
+      show("results", false);
+    }
+
+    if (!state.entries.length){
+      show("compare", false);
+      return;
+    }
+    show("compare", true);
+    $("compareSub").textContent = state.you && state.entries.length === 1
+      ? "You're first in. The others' picks appear here as they lock in."
+      : state.entries.length + " entries in, side by side.";
+    renderCompare(grades);
+  }
+
+  /* ---------- flow ---------- */
+  function applyState(s){
+    var was = state.board ? state.board.date : null;
+    state.board = s.board;
+    state.you = s.you;
+    state.entries = s.entries || [];
+    state.roster = s.roster || [];
+    state.closesAt = s.closesAt || null;
+    state.closed = !!s.closed;
+    state.mortal = s.mortal || null;
+    state.mortals = s.mortals || [];
+    state.mortalRoster = s.mortalRoster || [];
+    if (s.today) state.today = s.today;
+    state.beforeLines = !!s.beforeLines;
+    if (s.linesHour) state.linesHour = s.linesHour;
+
+    var d = state.board ? state.board.date : null;
+    if (d !== was){ state.scores = null; state.mortalPick = null; }
+    // Picks in progress are kept per slate, so stepping back to look at
+    // last night doesn't throw away a half-made card for tonight.
+    state.picks = d ? (state.drafts[d] || (state.drafts[d] = {})) : {};
+    if (d && state.days.indexOf(d) < 0){ state.days.push(d); state.days.sort(); }
+  }
+
+  /* ---------- mortal lock ---------- */
+  /* One pick per night, picked from your own locked slate — a side or a
+     total. It can't contradict your card, it can't be changed, and nobody
+     sees yours until they've set theirs. */
+  function gameById(id){
+    var hit = null;
+    (state.board ? state.board.games : []).forEach(function(g){ if (g.id === id) hit = g; });
+    return hit;
+  }
+
+  function describe(g, kind, choice){
+    if (kind === "spread"){
+      var s = g.sides[choice], o = g.sides[1 - choice];
+      return { pick: s.nick, line: fmtSpread(s.spread), ctx: (choice === 0 ? "at " : "vs ") + o.nick + " · " + fmtTip(g) };
+    }
+    return { pick: choice === "over" ? "Over" : "Under", line: String(g.total),
+             ctx: g.sides[0].nick + " at " + g.sides[1].nick + " · " + fmtTip(g) };
+  }
+
+  /* Same rule the server grades with. */
+  function mortalResult(m){
+    var g = gameById(m.gameId), sc = state.scores && state.scores[m.gameId];
+    if (!g || !sc || !sc.completed || sc.away === null || sc.home === null) return null;
+    if (m.kind === "spread"){
+      var mine = m.choice === 0 ? sc.away : sc.home, theirs = m.choice === 0 ? sc.home : sc.away;
+      var margin = mine - theirs + g.sides[m.choice].spread;
+      return margin > 0 ? "w" : margin < 0 ? "l" : "p";
+    }
+    var comb = sc.away + sc.home;
+    if (comb === g.total) return "p";
+    return (comb > g.total) === (m.choice === "over") ? "w" : "l";
+  }
+
+  function resultLabel(r, g){
+    if (r === "w") return "Won";
+    if (r === "l") return "Lost";
+    if (r === "p") return "Push";
+    var sc = state.scores && state.scores[g.id];
+    if (sc && sc.state === "post") return "Off";
+    return isOpen(g) ? "Pending" : "Live";
+  }
+
+  function renderMortal(){
+    var panel = $("mortalPanel");
+    if (!state.you){ panel.classList.add("hidden"); return; }
+    panel.classList.remove("hidden");
+
+    var list = $("mortalList"), others = $("mortalOthers");
+    list.textContent = ""; others.textContent = "";
+    $("mortalNote").textContent = ""; $("mortalNote").className = "note";
+
+    if (state.mortal){
+      // Set: show it, big, with how it's doing.
+      $("mortalTitle").textContent = "Your mortal lock";
+      $("mortalSub").textContent = "Sealed. It counts on the mortal-lock leaderboard as well as your slate.";
+      show("mortalActions", false);
+      var g = gameById(state.mortal.gameId);
+      if (g){
+        var d = describe(g, state.mortal.kind, state.mortal.choice), r = mortalResult(state.mortal);
+        var box = document.createElement("div");
+        box.className = "mset";
+        var left = document.createElement("span");
+        var pk = document.createElement("span"); pk.className = "mpick"; pk.textContent = d.pick + " " + d.line;
+        var cx = document.createElement("span"); cx.className = "mctx"; cx.textContent = d.ctx;
+        left.appendChild(pk); left.appendChild(cx);
+        var res = document.createElement("span");
+        res.className = "mres" + (r ? " " + r : "");
+        res.textContent = resultLabel(r, g);
+        box.appendChild(left); box.appendChild(res);
+        list.appendChild(box);
+      }
+    } else {
+      // Not set: offer every pick on your slate that hasn't tipped off.
+      var choices = [];
+      state.board.games.forEach(function(g){
+        var p = state.you.picks[g.id];
+        if (!p || !isOpen(g)) return;
+        if (p.side === 0 || p.side === 1) choices.push({ gameId: g.id, kind: "spread", choice: p.side });
+        if (p.total === "over" || p.total === "under") choices.push({ gameId: g.id, kind: "total", choice: p.total });
+      });
+
+      $("mortalTitle").textContent = "Pick your mortal lock";
+      if (!choices.length){
+        $("mortalSub").textContent = "No mortal lock tonight — every game on your slate has tipped off.";
+        show("mortalActions", false);
+      } else {
+        $("mortalSub").textContent = "The one pick on your slate you'd stake the house on — a side or a total. " +
+          "It gets its own leaderboard. One a night, and it can't be changed once it's in.";
+        show("mortalActions", true);
+        choices.forEach(function(c){
+          var g = gameById(c.gameId), d = describe(g, c.kind, c.choice);
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "mchoice";
+          var on = state.mortalPick && state.mortalPick.gameId === c.gameId && state.mortalPick.kind === c.kind;
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+          var left = document.createElement("span");
+          var pk = document.createElement("span"); pk.className = "mpick"; pk.textContent = d.pick;
+          var cx = document.createElement("span"); cx.className = "mctx"; cx.textContent = d.ctx;
+          left.appendChild(pk); left.appendChild(cx);
+          var ln = document.createElement("span"); ln.className = "mline"; ln.textContent = d.line;
+          b.appendChild(left); b.appendChild(ln);
+          b.addEventListener("click", function(){
+            state.mortalPick = on ? null : c;
+            renderMortal();
+          });
+          list.appendChild(b);
+        });
+        var btn = $("mortalBtn");
+        if (state.mortalPick){
+          var sel = describe(gameById(state.mortalPick.gameId), state.mortalPick.kind, state.mortalPick.choice);
+          btn.disabled = false;
+          btn.textContent = "Lock " + sel.pick + " " + sel.line;
+        } else {
+          btn.disabled = true;
+          btn.textContent = "Choose one pick";
+        }
+      }
+    }
+
+    // Everyone else's.
+    var mine = state.you.name;
+    if (state.mortals.length){
+      state.mortals.forEach(function(m){
+        if (m.name === mine) return;
+        var g = gameById(m.gameId);
+        if (!g) return;
+        var d = describe(g, m.kind, m.choice), r = mortalResult(m);
+        var row = document.createElement("div"); row.className = "mrow";
+        var w1 = document.createElement("span"); w1.className = "who3"; w1.textContent = m.name;
+        var w2 = document.createElement("span"); w2.className = "what"; w2.textContent = d.pick + " " + d.line;
+        var w3 = document.createElement("span"); w3.className = "mres" + (r ? " " + r : ""); w3.textContent = resultLabel(r, g);
+        row.appendChild(w1); row.appendChild(w2); row.appendChild(w3);
+        others.appendChild(row);
+      });
+    } else {
+      var waiting = state.mortalRoster.filter(function(x){ return x.name !== mine; }).map(function(x){ return x.name; });
+      if (waiting.length){
+        var note = document.createElement("div"); note.className = "mrow";
+        var w = document.createElement("span"); w.className = "what";
+        w.textContent = waiting.join(" and ") + (waiting.length === 1 ? " has" : " have") +
+          " set theirs. You'll see " + (waiting.length === 1 ? "it" : "them") + " once yours is in.";
+        note.appendChild(w); others.appendChild(note);
+      }
+    }
+  }
+
+  function isMortal(name, gameId, kind){
+    var hit = false;
+    state.mortals.forEach(function(m){ if (m.name === name && m.gameId === gameId && m.kind === kind) hit = true; });
+    if (state.mortal && state.you && name === state.you.name &&
+        state.mortal.gameId === gameId && state.mortal.kind === kind) hit = true;
+    return hit;
+  }
+
+  function lockTag(){
+    var s = document.createElement("span");
+    s.className = "mtag"; s.textContent = "LOCK";
+    return s;
+  }
+
+  /* ---------- live updates ---------- */
+  /* Each game flips to final on its own, so the 7:00s grade while the
+     10:30 out west is still going. Re-check every minute while the page
+     is in view, and stop once they're all in. A postponed game never goes
+     final, so it counts as done here too. */
+  var liveTimer = null, syncing = false;
+
+  function allFinal(){
+    if (!state.scores || !state.board) return false;
+    return state.board.games.every(function(g){
+      var s = state.scores[g.id];
+      return s && (s.completed || s.state === "post");
+    });
+  }
+
+  function startLive(){
+    if (liveTimer || state.preview) return;
+    liveTimer = setInterval(syncLive, 60000);
+  }
+  function stopLive(){
+    if (liveTimer){ clearInterval(liveTimer); liveTimer = null; }
+  }
+  function syncLive(){
+    if (syncing || state.preview || !state.board || document.hidden) return;
+    syncing = true;
+    api("/api/nba/day?date=" + state.board.date)
+      .then(function(s){ applyState(s); return loadScores(); })
+      .then(function(){
+        syncing = false;
+        if ($("locked").classList.contains("hidden")) return;
+        renderSettled();
+      })
+      .catch(function(){ syncing = false; });
+  }
+
+  function liveLabel(){
+    var bar = $("livebar");
+    if (allFinal()){
+      stopLive();
+      bar.classList.add("hidden");
+      return;
+    }
+    bar.classList.remove("hidden");
+    $("liveText").textContent = "Grading live · checked " +
+      new Date().toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+  }
+
+  /* ---------- leaderboard ---------- */
+  function showLeaderboard(){
+    ["auth","picker","review","locked","waiting"].forEach(function(id){ show(id, false); });
+    show("leaderboard", true);
+    window.scrollTo(0, 0);
+    if (state.preview){
+      $("lbSub").textContent = "Preview only — not connected to the picks server.";
+      return;
+    }
+    var season = state.board ? state.board.season : state.today ? seasonOf(state.today) : 0;
+    $("lbSub").textContent = "Loading…";
+    api("/api/nba/leaderboard" + (season ? "?season=" + season : ""))
+      .then(function(d){ renderLeaderboard(d); renderMortalBoard(d); })
+      .catch(function(e){ $("lbSub").textContent = String(e.message || e); });
+  }
+
+  function renderMortalBoard(data){
+    var box = $("lbMortal");
+    box.textContent = "";
+    var rows = (data.mortal || []);
+    var anyGraded = rows.some(function(r){ return r.w + r.l + r.p > 0; });
+    if (!anyGraded){
+      $("lbMortalSub").textContent = "No mortal locks graded yet. Set one from your slate each night.";
+      return;
+    }
+    $("lbMortalSub").textContent = "One pick a night, chosen from your own slate. Pushes don't count either way.";
+    rows.forEach(function(r, i){
+      var row = document.createElement("div");
+      row.className = "stand two" + (i === 0 && r.w + r.l ? " lead" : "");
+      var nm = document.createElement("span");
+      nm.className = "nm";
+      var rk = document.createElement("span");
+      rk.className = "rk";
+      rk.textContent = (i + 1) + ".";
+      nm.appendChild(rk);
+      nm.appendChild(document.createTextNode(" " + r.name));
+      row.appendChild(nm);
+      row.appendChild(stat("Record", r.w + "-" + r.l + (r.p ? "-" + r.p : "")));
+      row.appendChild(stat("Hit rate", pct(r.w, r.l), true));
+      box.appendChild(row);
+    });
+  }
+
+  function renderLeaderboard(data){
+    var box = $("lbTable");
+    box.textContent = "";
+    var players = data.players || [];
+    // A night counts once something in it has been graded.
+    var played = (data.days || []).filter(function(d){
+      return d.players.some(function(p){ return p.graded > 0; });
+    });
+    var behind = data.behind
+      ? " Still grading " + data.behind + " older night" + (data.behind === 1 ? "" : "s") + " — check back in a minute."
+      : "";
+
+    if (!players.length || !played.length){
+      $("lbSub").textContent = "Nothing graded yet. Standings appear once games go final." + behind;
+      return;
+    }
+    $("lbSub").textContent = (played.length === 1
+      ? fmtDay(played[0].date, { weekday:"short", month:"short", day:"numeric" }) + (played[0].final ? ", final." : ", still in progress.")
+      : played.length + " nights played, " + seasonLabel(data.season) + " season to date.") + behind;
+
+    players.forEach(function(p, i){
+      var row = document.createElement("div");
+      row.className = "stand" + (i === 0 ? " lead" : "");
+
+      var nm = document.createElement("span");
+      nm.className = "nm";
+      var rk = document.createElement("span");
+      rk.className = "rk";
+      rk.textContent = (i + 1) + ".";
+      nm.appendChild(rk);
+      nm.appendChild(document.createTextNode(" " + p.name));
+
+      row.appendChild(nm);
+      row.appendChild(stat("Spreads", pct(p.spread.w, p.spread.l)));
+      row.appendChild(stat("Totals", pct(p.total.w, p.total.l)));
+      row.appendChild(stat("Overall", pct(p.combined.w, p.combined.l), true));
+
+      var rec = document.createElement("div");
+      rec.className = "reclabel";
+      rec.style.gridColumn = "1 / -1";
+      rec.textContent = p.combined.w + "-" + p.combined.l +
+        (p.combined.p ? "-" + p.combined.p : "") + " overall" +
+        " · spreads " + p.spread.w + "-" + p.spread.l +
+        " · totals " + p.total.w + "-" + p.total.l +
+        (p.days > 1 ? " · " + p.days + " nights" : "");
+      row.appendChild(rec);
+      box.appendChild(row);
+    });
+  }
+
+  /* ---------- days ---------- */
+  function renderNav(){
+    if (!state.board){ show("daynav", false); return; }
+    show("daynav", true);
+    var d = state.board.date;
+    $("dayName").textContent = dayName(d);
+    $("dayDate").textContent = fmtDay(d, { weekday:"long", month:"long", day:"numeric" });
+    var i = state.days.indexOf(d);
+    $("prevDay").disabled = i <= 0;
+    $("nextDay").disabled = i < 0 || i >= state.days.length - 1;
+  }
+
+  /* When the page opens on something other than tonight, say why. */
+  function showToday(){
+    show("toLatest", false);
+    if (!state.board){ show("todayNote", false); return; }
+    var d = state.board.date, hour = hourLabel(state.linesHour);
+    var text = "";
+    if (state.pinned){
+      var name = dayName(d);
+      text = "Looking back at " + (name === "Last night" ? "last night" : name) + ".";
+      show("toLatest", true);
+    } else if (state.today && d !== state.today){
+      text = state.beforeLines
+        ? "Today's lines are set at " + hour + " ET."
+        : "No NBA slate today. Next lines at " + hour + " ET tomorrow.";
+    }
+    $("todayText").textContent = text;
+    show("todayNote", !!text);
+  }
+
+  function latestDay(){ return state.days.length ? state.days[state.days.length - 1] : null; }
+
+  function stepDay(by){
+    if (!state.board) return;
+    var i = state.days.indexOf(state.board.date);
+    var to = state.days[i + by];
+    if (!to) return;
+    loadDay(to === latestDay() ? undefined : to).then(function(){ window.scrollTo(0, 0); });
+  }
+
+  function loadDays(){
+    return api("/api/nba/days").then(function(j){
+      (j.dates || []).forEach(function(d){ if (state.days.indexOf(d) < 0) state.days.push(d); });
+      state.days.sort();
+      renderNav();
+    }).catch(function(){});
+  }
+
+  function route(){
+    show("leaderboard", false);
+    show("auth", false);
+    $("whoamiName").textContent = state.user ? state.user.name : "";
+    show("whoami", !!state.user);
+    show("signOut", !!state.user);
+    renderNav();
+    showToday();
+    if (!state.board){
+      var hour = hourLabel(state.linesHour);
+      $("waitingTitle").textContent = state.beforeLines ? "Lines set at " + hour + " ET" : "No slate today";
+      $("waitingText").textContent = state.beforeLines
+        ? "Every morning at " + hour + " ET the day's lines are pulled once and frozen, so everyone plays the same numbers. Check back after that."
+        : "No NBA games with lines today. Tomorrow's go up at " + hour + " ET.";
+      show("waiting", true);
+      show("picker", false); show("locked", false); show("review", false);
+      show("deadline", false);
+      return;
+    }
+    showDeadline();
+    if (state.you || state.closed) return renderSettled();
+
+    show("waiting", false); show("locked", false); show("review", false);
+    stopLive();
+    show("picker", true);
+    renderBoard();
+  }
+
+  function loadScores(){
+    if (!state.board || state.preview) return Promise.resolve();
+    var date = state.board.date;
+    return api("/api/nba/scores?date=" + date)
+      .then(function(j){ if (state.board && state.board.date === date) state.scores = j.scores || null; })
+      .catch(function(){});
+  }
+
+  function showDeadline(){
+    if (!state.closesAt){ show("deadline", false); return; }
+    var d = new Date(state.closesAt);
+    if (isNaN(d)){ show("deadline", false); return; }
+    show("deadline", true);
+    $("deadlineText").textContent = "Picks shut game by game · next at " + fmtTime(state.closesAt);
+  }
+
+  function setSource(text, tone){
+    $("sourceText").textContent = text;
+    $("source").className = "source " + (tone || "");
+  }
+
+  function forgetSession(){
+    state.token = ""; state.user = null;
+    store("slip.token", "");
+  }
+
+  function setAuthMode(mode){
+    state.authMode = mode;
+    var creating = mode === "register";
+    $("authTitle").textContent = creating ? "Create an account" : "Sign in";
+    $("authSub").textContent = creating
+      ? "Already play Sunday Slip? Sign in instead — it's the same account."
+      : "Same account as Sunday Slip. Your picks and your record follow you to any phone or laptop.";
+    $("authBtn").textContent = creating ? "Create account" : "Sign in";
+    $("authSwap").textContent = creating ? "I already have an account" : "Create an account";
+    $("authPass").setAttribute("autocomplete", creating ? "new-password" : "current-password");
+    $("codeField").classList.toggle("hidden", !(creating && state.codeRequired));
+  }
+
+  function showAuth(mode, message){
+    ["picker", "review", "locked", "waiting", "leaderboard", "daynav", "todayNote", "deadline"].forEach(function(id){ show(id, false); });
+    show("auth", true); show("whoami", false); show("signOut", false);
+    setAuthMode(mode || "login");
+    $("authNote").textContent = message || "";
+    $("authNote").className = message ? "note bad" : "note";
+  }
+
+  /* No date: the newest slate — tonight's once its lines are set, last
+     night's until then. */
+  function loadDay(date){
+    return api("/api/nba/day" + (date ? "?date=" + date : ""))
+      .then(function(s){
+        applyState(s);
+        state.pinned = !!(date && state.board && date !== latestDay());
+        if (state.board){
+          var frozen = fmtTime(state.board.frozenAt);
+          setSource("Lines frozen " + (frozen ? frozen + " " : "") + fmtDay(state.board.date, { weekday:"short", month:"short", day:"numeric" }), "live");
+        } else {
+          setSource(state.beforeLines ? "Waiting on this morning's lines" : "No slate today", "warn");
+        }
+        return loadScores();
+      })
+      .then(function(){ state.loadedAt = Date.now(); route(); })
+      .catch(function(e){
+        var msg = String(e.message || e);
+        // The NBA routes only exist on the updated Worker.
+        var old = /not found|404/i.test(msg);
+        setSource(old ? "Picks server needs updating" : "Can't reach the picks server", "warn");
+        $("waitingTitle").textContent = old ? "Picks server needs updating" : "Can't reach the picks server";
+        $("waitingText").textContent = old
+          ? "The Worker is still running a version without the NBA. Deploy the updated worker.js and reload."
+          : msg;
+        ["picker", "review", "locked", "daynav", "todayNote", "deadline"].forEach(function(id){ show(id, false); });
+        show("waiting", true);
+      });
+  }
+
+  function boot(){
+    state.token = store("slip.token") || "";
+
+    if (state.preview){
+      state.board = { season: SNAPSHOT.season, date: SNAPSHOT.date, games: SNAPSHOT.games, frozenAt: SNAPSHOT.capturedAt };
+      state.today = SNAPSHOT.date; state.days = [SNAPSHOT.date];
+      setSource("Preview · not connected to the picks server", "warn");
+      $("tagline").textContent = "Preview of the board. Signing in and locking picks needs the Worker URL set in the page — see the README.";
+      renderNav();
+      show("picker", true);
+      renderBoard();
+      return;
+    }
+
+    setSource("Connecting", "");
+    api("/api/me")
+      .then(function(j){
+        state.codeRequired = !!j.signupCodeRequired;
+        if (!j.user){
+          forgetSession();
+          showAuth("login");
+          setSource("Sign in to pick", "warn");
+          return;
+        }
+        state.user = j.user;
+        loadDays();
+        return loadDay();
+      })
+      .catch(function(e){
+        setSource("Can't reach the picks server", "warn");
+        showAuth("login", String(e.message || e));
+      });
+  }
+
+  /* ---------- events ---------- */
+  $("prevDay").addEventListener("click", function(){ stepDay(-1); });
+  $("nextDay").addEventListener("click", function(){ stepDay(1); });
+  $("toLatest").addEventListener("click", function(){
+    loadDay().then(function(){ window.scrollTo(0, 0); });
+  });
+
+  /* Back on the page after a while: re-check, and if it's sitting on the
+     newest slate, pick up a new morning's board. Left alone mid-pick, and
+     not more than once every half minute however often the tab flips. */
+  document.addEventListener("visibilitychange", function(){
+    if (document.hidden || state.preview || !state.user) return;
+    if (Date.now() - (state.loadedAt || 0) < 30000) return;
+    var busy = ["picker", "review", "leaderboard", "auth"].some(function(id){ return !$(id).classList.contains("hidden"); });
+    if (busy) return;
+    loadDay(state.pinned && state.board ? state.board.date : undefined);
+  });
+
+  $("mortalBtn").addEventListener("click", function(){
+    var pick = state.mortalPick;
+    if (!pick || !state.board) return;
+    var btn = this;
+    btn.disabled = true;
+    $("mortalNote").textContent = "Locking…";
+    $("mortalNote").className = "note";
+    api("/api/nba/mortal", {
+      method: "POST",
+      body: { date: state.board.date, gameId: pick.gameId, kind: pick.kind }
+    }).then(function(s){
+      applyState(s);
+      state.mortalPick = null;
+      renderSettled();
+    }).catch(function(e){
+      btn.disabled = false;
+      $("mortalNote").textContent = String(e.message || e);
+      $("mortalNote").className = "note bad";
+    });
+  });
+
+  $("lbBtn").addEventListener("click", showLeaderboard);
+  $("lbBack").addEventListener("click", function(){
+    show("leaderboard", false);
+    if (state.preview){ show("picker", true); return; }
+    if (!state.user){ showAuth("login"); return; }
+    route();
+  });
+
+  $("authSwap").addEventListener("click", function(){
+    setAuthMode(state.authMode === "login" ? "register" : "login");
+    $("authNote").textContent = "";
+  });
+
+  function submitAuth(){
+    var name = $("authName").value.trim();
+    var pass = $("authPass").value;
+    var note = $("authNote");
+    if (!name || !pass){
+      note.textContent = "Name and password, please.";
+      note.className = "note bad";
+      return;
+    }
+    var creating = state.authMode === "register";
+    var body = { username: name, password: pass };
+    if (creating) body.code = $("authCode").value.trim();
+
+    $("authBtn").disabled = true;
+    note.textContent = creating ? "Creating…" : "Signing in…";
+    note.className = "note";
+
+    api(creating ? "/api/register" : "/api/login", { method: "POST", body: body })
+      .then(function(j){
+        state.token = j.token;
+        state.user = j.user;
+        store("slip.token", j.token);
+        $("authBtn").disabled = false;
+        $("authPass").value = "";
+        show("auth", false);
+        loadDays();
+        return loadDay();
+      })
+      .catch(function(e){
+        $("authBtn").disabled = false;
+        note.textContent = String(e.message || e);
+        note.className = "note bad";
+      });
+  }
+
+  $("authBtn").addEventListener("click", submitAuth);
+  $("authPass").addEventListener("keydown", function(e){ if (e.key === "Enter") submitAuth(); });
+  $("authName").addEventListener("keydown", function(e){ if (e.key === "Enter") $("authPass").focus(); });
+
+  $("signOut").addEventListener("click", function(){
+    var done = function(){
+      forgetSession();
+      stopLive();
+      state.board = null; state.you = null; state.entries = []; state.roster = []; state.picks = {}; state.drafts = {};
+      state.mortal = null; state.mortals = []; state.mortalRoster = []; state.mortalPick = null;
+      state.scores = null; state.days = []; state.pinned = false;
+      showAuth("login", "");
+      setSource("Sign in to pick", "warn");
+    };
+    api("/api/logout", { method: "POST" }).then(done, done);
+  });
+
+  $("reviewBtn").addEventListener("click", function(){
+    fillSlip($("reviewList"), openPicks());
+    $("reviewTitle").textContent = (state.user ? state.user.name + ", check it over" : "Check it over");
+    show("picker", false);
+    show("review", true);
+    window.scrollTo(0, 0);
+  });
+
+  $("backBtn").addEventListener("click", function(){
+    show("review", false);
+    show("picker", true);
+    refresh();
+    window.scrollTo(0, 0);
+  });
+
+  $("lockBtn").addEventListener("click", function(){
+    var btn = this;
+    btn.disabled = true;
+    $("lockNote").textContent = "Sealing…";
+    $("lockNote").className = "note";
+    api("/api/nba/lock", {
+      method: "POST",
+      body: { date: state.board.date, picks: openPicks() }
+    }).then(function(s){
+      applyState(s);
+      return loadScores();
+    }).then(function(){
+      btn.disabled = false;
+      $("lockNote").textContent = "";
+      show("review", false);
+      renderSettled();
+      window.scrollTo(0, 0);
+    }).catch(function(e){
+      btn.disabled = false;
+      $("lockNote").textContent = String(e.message || e);
+      $("lockNote").className = "note bad";
+    });
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>

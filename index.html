@@ -351,6 +351,8 @@ footer{
   padding:28px 0 36px; color:var(--ink-3); font-size:12px; text-align:center;
   font-family:"IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase;
 }
+footer a{color:var(--ink-2); text-decoration:none; border-bottom:1px solid var(--line-strong)}
+footer a:hover{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -481,7 +483,7 @@ footer{
     </section>
   </section>
 
-  <footer>No money changes hands. Probably.</footer>
+  <footer>No money changes hands. Probably. · <a href="nba/">Nightly Slip (NBA)</a></footer>
 </div>
 
 <script>
@@ -1361,6 +1363,7 @@ footer{
   function route(){
     show("leaderboard", false);
     show("auth", false);
+    $("whoamiName").textContent = state.user ? state.user.name : "";
     show("whoami", !!state.user);
     show("signOut", !!state.user);
     if (!state.board){
